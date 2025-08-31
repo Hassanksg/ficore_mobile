@@ -15,6 +15,86 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger('business_finance_app')
 logger.setLevel(logging.INFO)
 
+def manage_index(collection, keys, options=None, name=None):
+    """
+    Manage MongoDB index creation with conflict resolution.
+    
+    Args:
+        collection: MongoDB collection object
+        keys: List of tuples for index keys [(field, direction), ...]
+        options: Dictionary of index options (unique, sparse, etc.)
+        name: Custom index name (optional)
+    
+    Returns:
+        bool: True if index was created/updated, False if already exists
+    """
+    if options is None:
+        options = {}
+    
+    try:
+        # Generate index name if not provided
+        if not name:
+            name = '_'.join(f"{k}_{v if isinstance(v, int) else str(v).replace(' ', '_')}" for k, v in keys)
+        
+        # Get existing indexes
+        existing_indexes = collection.index_information()
+        index_key_tuple = tuple(keys)
+        
+        # Check if index with same key pattern already exists
+        for existing_name, existing_info in existing_indexes.items():
+            if tuple(existing_info['key']) == index_key_tuple:
+                # Skip _id index
+                if existing_name == '_id_':
+                    logger.info(f"Skipping _id index on {collection.name}", 
+                               extra={'session_id': 'no-session-id'})
+                    return False
+                
+                # Compare options (exclude internal MongoDB fields)
+                existing_options = {k: v for k, v in existing_info.items() 
+                                  if k not in ['key', 'v', 'ns']}
+                
+                if existing_options == options and existing_name == name:
+                    logger.info(f"Index already exists on {collection.name}: {keys} with options {options}", 
+                               extra={'session_id': 'no-session-id'})
+                    return False
+                else:
+                    # Drop conflicting index and recreate with correct name/options
+                    logger.info(f"Dropping conflicting index {existing_name} on {collection.name}", 
+                               extra={'session_id': 'no-session-id'})
+                    collection.drop_index(existing_name)
+                    break
+        
+        # Create the index
+        collection.create_index(keys, name=name, **options)
+        logger.info(f"Created index on {collection.name}: {keys} with name '{name}' and options {options}", 
+                   extra={'session_id': 'no-session-id'})
+        return True
+        
+    except Exception as e:
+        if 'IndexOptionsConflict' in str(e) or 'IndexKeySpecsConflict' in str(e):
+            logger.info(f"Resolving index conflict for {collection.name}: {name}", 
+                       extra={'session_id': 'no-session-id'})
+            try:
+                # Try to drop by name first
+                collection.drop_index(name)
+            except:
+                # If drop by name fails, find and drop by key pattern
+                existing_indexes = collection.index_information()
+                for existing_name, existing_info in existing_indexes.items():
+                    if tuple(existing_info['key']) == index_key_tuple and existing_name != '_id_':
+                        collection.drop_index(existing_name)
+                        break
+            
+            # Recreate the index
+            collection.create_index(keys, name=name, **options)
+            logger.info(f"Recreated index on {collection.name}: {keys} with name '{name}' and options {options}", 
+                       extra={'session_id': 'no-session-id'})
+            return True
+        else:
+            logger.error(f"Failed to create index on {collection.name}: {str(e)}", 
+                        exc_info=True, extra={'session_id': 'no-session-id'})
+            raise
+
 def get_db():
     """
     Get MongoDB database connection using the global client from utils.py.
@@ -479,55 +559,19 @@ def initialize_app_data(app):
                                     exc_info=True, extra={'session_id': 'no-session-id'})
                         raise
                 
-                existing_indexes = db_instance[collection_name].index_information()
+                # Create indexes using the manage_index function
+                collection_obj = db_instance[collection_name]
                 for index in config.get('indexes', []):
                     keys = index['key']
                     options = {k: v for k, v in index.items() if k != 'key'}
-                    index_key_tuple = tuple(keys)
                     index_name = '_'.join(f"{k}_{v if isinstance(v, int) else str(v).replace(' ', '_')}" for k, v in keys)
-                    index_exists = False
-                    for existing_index_name, existing_index_info in existing_indexes.items():
-                        if tuple(existing_index_info['key']) == index_key_tuple:
-                            existing_options = {k: v for k, v in existing_index_info.items() if k not in ['key', 'v', 'ns']}
-                            if existing_options == options:
-                                logger.info(f"{trans('general_index_exists', default='Index already exists on')} {collection_name}: {keys} with options {options}", 
-                                           extra={'session_id': 'no-session-id'})
-                                index_exists = True
-                            else:
-                                if existing_index_name == '_id_':
-                                    logger.info(f"Skipping drop of _id index on {collection_name}", 
-                                               extra={'session_id': 'no-session-id'})
-                                    continue
-                                try:
-                                    db_instance[collection_name].drop_index(existing_index_name)
-                                    logger.info(f"Dropped conflicting index {existing_index_name} on {collection_name}", 
-                                               extra={'session_id': 'no-session-id'})
-                                except Exception as e:
-                                    logger.error(f"Failed to drop index {existing_index_name} on {collection_name}: {str(e)}", 
-                                                exc_info=True, extra={'session_id': 'no-session-id'})
-                                    raise
-                            break
-                    if not index_exists:
-                        try:
-                            db_instance[collection_name].create_index(keys, name=index_name, **options)
-                            logger.info(f"{trans('general_index_created', default='Created index on')} {collection_name}: {keys} with options {options}", 
-                                       extra={'session_id': 'no-session-id'})
-                        except Exception as e:
-                            if 'IndexKeySpecsConflict' in str(e):
-                                logger.info(f"Attempting to resolve index conflict for {collection_name}: {index_name}", 
-                                           extra={'session_id': 'no-session-id'})
-                                if index_name != '_id_':
-                                    db_instance[collection_name].drop_index(index_name)
-                                    db_instance[collection_name].create_index(keys, name=index_name, **options)
-                                    logger.info(f"Recreated index on {collection_name}: {keys} with options {options}", 
-                                               extra={'session_id': 'no-session-id'})
-                                else:
-                                    logger.info(f"Skipping recreation of _id index on {collection_name}", 
-                                               extra={'session_id': 'no-session-id'})
-                            else:
-                                logger.error(f"Failed to create index on {collection_name}: {str(e)}", 
-                                            exc_info=True, extra={'session_id': 'no-session-id'})
-                                raise
+                    
+                    try:
+                        manage_index(collection_obj, keys, options, index_name)
+                    except Exception as e:
+                        logger.error(f"Failed to manage index on {collection_name}: {str(e)}", 
+                                    exc_info=True, extra={'session_id': 'no-session-id'})
+                        raise
             
             # Add sample investor_report record if none exist
             if 'records' in collections:
