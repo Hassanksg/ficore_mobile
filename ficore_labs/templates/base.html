@@ -28,6 +28,46 @@
     
     <!-- Critical CSS inlined for fastest render -->
     <style>
+        :root {
+            --primary-bg: #ffffff;
+            --primary-text: #212529;
+            --secondary-bg: #f8f9fa;
+            --button-primary-bg: #007bff;
+            --button-primary-text: #ffffff;
+            --link-color: #007bff;
+        }
+        
+        .dark-mode {
+            --primary-bg: #212529;
+            --primary-text: #f8f9fa;
+            --secondary-bg: #343a40;
+            --button-primary-bg: #0d6efd;
+            --button-primary-text: #ffffff;
+            --link-color: #66b0ff;
+        }
+        
+        body {
+            background-color: var(--primary-bg);
+            color: var(--primary-text);
+            font-family: 'Poppins', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .navbar, .fintech-top-header {
+            background-color: var(--secondary-bg);
+            color: var(--primary-text);
+        }
+        
+        .btn-primary {
+            background-color: var(--button-primary-bg);
+            color: var(--button-primary-text);
+            border: none;
+        }
+        
+        a {
+            color: var(--link-color);
+        }
+        
         {{ critical_css() | safe }}
     </style>
     
@@ -80,7 +120,7 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% if session.get('dark_mode', False) %}dark-mode{% endif %}">
+<body class="{% if localStorage.getItem('theme') === 'dark' %}dark-mode{% endif %}">
     <header class="fintech-top-header">
         <div class="header-left">
             {% if current_user.is_authenticated %}
@@ -117,7 +157,7 @@
                 <i class="bi bi-globe"></i>
                 <span id="languageText">{{ 'ENGLISH' if current_lang == 'en' else 'HAUSA' }}</span>
             </button>
-            <button class="icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" data-bs-toggle="tooltip" data-bs-title="{{ t('general_mode_toggle_tooltip_switch_to_dark', default='Switch to dark mode') | e }}">
+            <button class="icon-btn" id="darkModeToggle" onclick="toggleTheme()" data-bs-toggle="tooltip" data-bs-title="{{ t('general_mode_toggle_tooltip_switch_to_dark', default='Switch to dark mode') | e }}">
                 <i class="bi bi-moon-stars"></i>
             </button>
             {% if current_user.is_authenticated %}
@@ -151,7 +191,7 @@
                             </button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link btn btn-link" id="navDarkModeToggle" onclick="toggleDarkMode()" data-bs-toggle="tooltip" data-bs-title="{{ t('general_mode_toggle_tooltip_switch_to_dark', default='Switch to dark mode') | e }}">
+                            <button class="nav-link btn btn-link" id="navDarkModeToggle" onclick="toggleTheme()" data-bs-toggle="tooltip" data-bs-title="{{ t('general_mode_toggle_tooltip_switch_to_dark', default='Switch to dark mode') | e }}">
                                 <i class="bi bi-moon-stars"></i>
                             </button>
                         </li>
@@ -329,7 +369,7 @@
             height: 40px;
             border-radius: 50%;
             overflow: hidden;
-            background-color: #eee;
+            background-color: var(--secondary-bg);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -350,8 +390,8 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            background-color: var(--button-primary-bg, #007bff);
-            color: white;
+            background-color: var(--button-primary-bg);
+            color: var(--button-primary-text);
             border-radius: 50%;
             padding: 4px;
             font-size: 0.8em;
@@ -370,7 +410,7 @@
             min-width: 200px;
             padding: 10px 20px;
             border-radius: 5px;
-            color: white;
+            color: var(--button-primary-text);
             z-index: 1050;
             opacity: 0.9;
         }
@@ -404,7 +444,6 @@
             loadScript('{{ asset_url("js/sidebar_enhancements.js") | e }}')
         ]).then(() => {
             console.log('All scripts loaded successfully');
-            // Initialize components that depend on loaded scripts
             if (typeof initializeComponents === 'function') {
                 initializeComponents();
             }
@@ -472,7 +511,7 @@
 
             animate();
             setTimeout(() => {
-                particles.length = 0; // Stop animation after a while
+                particles.length = 0;
             }, 5000);
         }
 
@@ -489,8 +528,7 @@
 
         // Clear local user-specific data
         function clearUserData() {
-            localStorage.clear();
-            sessionStorage.clear();
+            localStorage.removeItem('user_data');
             console.log('Local user data cleared.');
         }
 
@@ -562,7 +600,7 @@
                 const result = await response.json();
                 if (result.success) {
                     languageTexts.forEach(text => text.textContent = newLang === 'en' ? 'ENGLISH' : 'HAUSA');
-                    window.location.reload(); // Ensures all translations update
+                    window.location.reload();
                 } else {
                     showToast('Language update failed', 'error');
                 }
@@ -572,7 +610,41 @@
             }
         }
 
+        // Theme toggle function
+        function toggleTheme() {
+            const isDark = !document.documentElement.classList.contains('dark-mode');
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeToggleUI(isDark);
+            showToast(isDark ? '{{ t("general_switched_to_dark_mode", default="Switched to dark mode") | e }}' : '{{ t("general_switched_to_light_mode", default="Switched to light mode") | e }}', 'success');
+        }
+
+        function updateThemeToggleUI(isDark) {
+            const toggles = document.querySelectorAll('#darkModeToggle, #navDarkModeToggle');
+            toggles.forEach(toggle => {
+                const icon = toggle.querySelector('i');
+                icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+                icon.style.color = isDark ? '#ffc107' : '#6c757d';
+                icon.style.transform = isDark ? 'scale(1.1)' : 'scale(1)';
+                toggle.setAttribute('data-bs-title', isDark ? '{{ t("general_mode_toggle_tooltip_switch_to_light", default="Switch to light mode") | e }}' : '{{ t("general_mode_toggle_tooltip_switch_to_dark", default="Switch to dark mode") | e }}');
+                toggle.setAttribute('aria-label', isDark ? '{{ t("general_mode_toggle_light", default="Toggle light mode") | e }}' : '{{ t("general_mode_toggle_dark", default="Toggle dark mode") | e }}');
+                const tooltip = bootstrap.Tooltip.getInstance(toggle);
+                if (tooltip) tooltip.dispose();
+                new bootstrap.Tooltip(toggle);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize theme based on localStorage
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+                updateThemeToggleUI(true);
+            } else {
+                document.documentElement.classList.remove('dark-mode');
+                updateThemeToggleUI(false);
+            }
+
             // Initialize tooltips for all toggle buttons
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
                 new bootstrap.Tooltip(tooltipTriggerEl);
@@ -635,19 +707,6 @@
                 }, false);
             }
 
-            // Dark mode initialization
-            const storedDarkMode = localStorage.getItem('dark_mode');
-            const isDark = storedDarkMode === 'true';
-            if (isDark) {
-                document.documentElement.classList.add('dark-mode');
-                const toggles = document.querySelectorAll('#darkModeToggle, #navDarkModeToggle');
-                toggles.forEach(toggle => {
-                    toggle.querySelector('i').className = 'bi bi-sun';
-                    toggle.setAttribute('data-bs-title', '{{ t("general_mode_toggle_tooltip_switch_to_light", default="Switch to light mode") | e }}');
-                    toggle.setAttribute('aria-label', '{{ t("general_mode_toggle_light", default="Toggle light mode") | e }}');
-                });
-            }
-
             {% if current_user.is_authenticated %}
                 if (!window.isAuthenticatedContentBlocked) {
                     loadNotificationCount();
@@ -696,24 +755,6 @@
             }
         });
 
-        window.toggleDarkMode = function() {
-            const isDark = !document.documentElement.classList.contains('dark-mode');
-            document.documentElement.classList.toggle('dark-mode', isDark);
-            localStorage.setItem('dark_mode', isDark);
-            const toggles = document.querySelectorAll('#darkModeToggle, #navDarkModeToggle');
-            toggles.forEach(darkModeToggle => {
-                const icon = darkModeToggle.querySelector('i');
-                icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
-                icon.style.color = isDark ? '#ffc107' : '#6c757d';
-                icon.style.transform = isDark ? 'scale(1.1)' : 'scale(1)';
-                darkModeToggle.setAttribute('data-bs-title', isDark ? '{{ t("general_mode_toggle_tooltip_switch_to_light", default="Switch to light mode") | e }}' : '{{ t("general_mode_toggle_tooltip_switch_to_dark", default="Switch to dark mode") | e }}');
-                darkModeToggle.setAttribute('aria-label', isDark ? '{{ t("general_mode_toggle_light", default="Toggle light mode") | e }}' : '{{ t("general_mode_toggle_dark", default="Toggle dark mode") | e }}');
-                const tooltip = bootstrap.Tooltip.getInstance(darkModeToggle);
-                if (tooltip) tooltip.dispose();
-                new bootstrap.Tooltip(darkModeToggle);
-            });
-        };
-
         async function loadNotificationCount() {
             if (window.isAuthenticatedContentBlocked) return;
             try {
@@ -732,7 +773,7 @@
                     badge.className = `notification-badge badge bg-${data.count > 0 ? 'danger' : 'primary'} rounded-circle`;
                     badge.classList.toggle('d-none', data.count === 0);
                 }
-            } catch (error) {
+            } finalistch (error) {
                 console.error('Failed to load notification count:', error);
             }
         }
@@ -878,14 +919,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update language toggle buttons
                     document.querySelectorAll('.language-btn-header').forEach(btn => {
                         btn.classList.toggle('active', btn.dataset.lang === lang);
                     });
-                    
                     showToast('{{ t("settings_language_updated", default="Language updated successfully") }}', 'success');
-                    
-                    // Reload page to apply language changes
                     setTimeout(() => {
                         window.location.reload();
                     }, 500);
@@ -910,11 +947,10 @@
         
         .language-toggle-header {
             display: flex;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--secondary-bg);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
         
         .language-btn-header {
@@ -923,41 +959,40 @@
             padding: 6px 12px;
             font-size: 11px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--primary-text);
             cursor: pointer;
             transition: all 0.2s ease;
             text-transform: uppercase;
         }
         
         .language-btn-header:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
         }
         
         .language-btn-header.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
         }
         
         /* Dark mode adjustments */
         .dark-mode .language-toggle-header {
-            background: rgba(0, 0, 0, 0.3);
             border-color: rgba(255, 255, 255, 0.1);
         }
         
         .dark-mode .language-btn-header {
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--primary-text);
         }
         
         .dark-mode .language-btn-header:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
         }
         
         .dark-mode .language-btn-header.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
         }
         
         /* Responsive adjustments */
