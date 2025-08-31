@@ -49,7 +49,7 @@ class DatabaseOptimizer:
                 )
                 # Test connection
                 g.mongo_client.admin.command('ping')
-                logger info("Optimized MongoDB connection established")
+                logger.info("Optimized MongoDB connection established")
             except Exception as e:
                 logger.error(f"Failed to establish optimized MongoDB connection: {e}")
                 raise
@@ -305,3 +305,4 @@ class DatabaseOptimizer:
                 return result
             return wrapper
         return decorator
+
