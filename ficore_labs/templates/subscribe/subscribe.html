@@ -90,7 +90,7 @@
     {% block page_scripts %}
     <script>
         function initiatePayment(planCode) {
-            window.location.href = '{{ url_for("subscribe_bp.payment_page") }}?plan_code=' + encodeURIComponent(planCode);
+            window.location.href = '{{ url_for("subscribe_bp.manage_subscription") }}?plan_code=' + encodeURIComponent(planCode);
         }
     </script>
     {% endblock %}
