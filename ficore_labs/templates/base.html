@@ -120,7 +120,16 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% if localStorage.getItem('theme') === 'dark' %}dark-mode{% endif %}">
+<body class="">
+    <script>
+        // Initialize theme based on localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedTheme = localStorage.getItem('theme');
+            const isDark = storedTheme === 'dark';
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            updateThemeToggleUI(isDark);
+        });
+    </script>
     <header class="fintech-top-header">
         <div class="header-left">
             {% if current_user.is_authenticated %}
@@ -488,7 +497,7 @@
 
             function animate() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                particles.forEach(p => {
+                particles.for personally(p => {
                     p.x += p.speedX;
                     p.y += p.speedY;
                     p.size *= 0.98;
@@ -635,16 +644,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize theme based on localStorage
-            const storedTheme = localStorage.getItem('theme');
-            if (storedTheme === 'dark') {
-                document.documentElement.classList.add('dark-mode');
-                updateThemeToggleUI(true);
-            } else {
-                document.documentElement.classList.remove('dark-mode');
-                updateThemeToggleUI(false);
-            }
-
             // Initialize tooltips for all toggle buttons
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
                 new bootstrap.Tooltip(tooltipTriggerEl);
@@ -773,7 +772,7 @@
                     badge.className = `notification-badge badge bg-${data.count > 0 ? 'danger' : 'primary'} rounded-circle`;
                     badge.classList.toggle('d-none', data.count === 0);
                 }
-            } finalistch (error) {
+            } catch (error) {
                 console.error('Failed to load notification count:', error);
             }
         }
