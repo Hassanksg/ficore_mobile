@@ -1,14 +1,9 @@
-"""
-Database optimization utilities for FiCore Labs application.
-Provides connection pooling, query optimization, and caching strategies.
-"""
-
 import time
 from functools import wraps
 from datetime import datetime, timedelta
 from flask import current_app, g
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure
 import logging
 
 logger = logging.getLogger(__name__)
@@ -54,7 +49,7 @@ class DatabaseOptimizer:
                 )
                 # Test connection
                 g.mongo_client.admin.command('ping')
-                logger.info("Optimized MongoDB connection established")
+                logger info("Optimized MongoDB connection established")
             except Exception as e:
                 logger.error(f"Failed to establish optimized MongoDB connection: {e}")
                 raise
@@ -107,72 +102,77 @@ class DatabaseOptimizer:
     def optimize_collection_indexes(self, db):
         """Optimize collection indexes for better query performance."""
         try:
+            # Helper function to check if index exists with same specification
+            def index_exists(collection, index_spec, index_name):
+                existing_indexes = collection.index_information()
+                for name, info in existing_indexes.items():
+                    if name == index_name:
+                        continue  # Skip if name matches exactly
+                    if info.get('key') == index_spec:
+                        logger.warning(f"Index with specification {index_spec} already exists with name {name}")
+                        return True
+                return False
+
             # Users collection optimization
             users_collection = db.users
             
             # Compound indexes for common queries
-            users_collection.create_index([
-                ('email', 1),
-                ('is_active', 1)
-            ], background=True, name='email_active_idx')
+            email_active_idx = [('email', 1), ('is_active', 1)]
+            if not index_exists(users_collection, email_active_idx, 'email_active_idx'):
+                users_collection.create_index(email_active_idx, background=True, name='email_active_idx')
             
-            users_collection.create_index([
-                ('role', 1),
-                ('is_subscribed', 1),
-                ('trial_end', 1)
-            ], background=True, name='role_subscription_idx')
+            role_subscription_idx = [('role', 1), ('is_subscribed', 1), ('trial_end', 1)]
+            if not index_exists(users_collection, role_subscription_idx, 'role_subscription_idx'):
+                users_collection.create_index(role_subscription_idx, background=True, name='role_subscription_idx')
             
             # Records collection optimization
             records_collection = db.records
             
             # Compound indexes for dashboard queries
-            records_collection.create_index([
-                ('user_id', 1),
-                ('type', 1),
-                ('created_at', -1)
-            ], background=True, name='user_type_created_idx')
+            user_type_created_idx = [('user_id', 1), ('type', 1), ('created_at', -1)]
+            if not index_exists(records_collection, user_type_created_idx, 'user_type_created_idx'):
+                records_collection.create_index(user_type_created_idx, background=True, name='user_type_created_idx')
             
-            records_collection.create_index([
-                ('user_id', 1),
-                ('amount_owed', -1)
-            ], background=True, name='user_amount_idx', sparse=True)
+            user_amount_idx = [('user_id', 1), ('amount_owed', -1)]
+            if not index_exists(records_collection, user_amount_idx, 'user_amount_idx'):
+                records_collection.create_index(user_amount_idx, background=True, name='user_amount_idx', sparse=True)
             
             # Cashflows collection optimization
             cashflows_collection = db.cashflows
             
-            cashflows_collection.create_index([
-                ('user_id', 1),
-                ('type', 1),
-                ('created_at', -1)
-            ], background=True, name='user_type_date_idx')
+            user_type_date_idx = [('user_id', 1), ('type', 1), ('created_at', -1)]
+            if not index_exists(cashflows_collection, user_type_date_idx, 'user_type_date_idx'):
+                cashflows_collection.create_index(user_type_date_idx, background=True, name='user_type_date_idx')
             
-            cashflows_collection.create_index([
-                ('user_id', 1),
-                ('amount', -1)
-            ], background=True, name='user_amount_desc_idx')
+            user_amount_desc_idx = [('user_id', 1), ('amount', -1)]
+            if not index_exists(cashflows_collection, user_amount_desc_idx, 'user_amount_desc_idx'):
+                cashflows_collection.create_index(user_amount_desc_idx, background=True, name='user_amount_desc_idx')
             
             # Notifications collection optimization
             notifications_collection = db.notifications
             
-            notifications_collection.create_index([
-                ('user_id', 1),
-                ('read', 1),
-                ('timestamp', -1)
-            ], background=True, name='user_read_timestamp_idx')
+            user_read_timestamp_idx = [('user_id', 1), ('read', 1), ('timestamp', -1)]
+            if not index_exists(notifications_collection, user_read_timestamp_idx, 'user_read_timestamp_idx'):
+                notifications_collection.create_index(user_read_timestamp_idx, background=True, name='user_read_timestamp_idx')
             
             # Sessions collection TTL index
             sessions_collection = db.sessions
-            sessions_collection.create_index(
-                'created_at',
-                expireAfterSeconds=1800,  # 30 minutes
-                background=True,
-                name='session_ttl_idx'
-            )
+            session_ttl_idx = [('created_at', 1)]
+            if not index_exists(sessions_collection, session_ttl_idx, 'session_ttl_idx'):
+                sessions_collection.create_index(
+                    'created_at',
+                    expireAfterSeconds=1800,  # 30 minutes
+                    background=True,
+                    name='session_ttl_idx'
+                )
             
             logger.info("Database indexes optimized successfully")
             
-        except Exception as e:
+        except OperationFailure as e:
             logger.error(f"Failed to optimize database indexes: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during index optimization: {e}")
             raise
     
     def get_aggregation_pipeline_for_dashboard(self, user_id):
