@@ -1,0 +1,229 @@
+/* Critical CSS - Above the fold styles for faster initial render */
+
+/* CSS Variables - Essential for theme switching */
+:root {
+    --navbar-height: 80px;
+    --bottom-nav-height: 65px;
+    --background-main: #F2EFEA;
+    --card-bg: #f9f9f9;
+    --button-primary-bg: #b88a44;
+    --button-primary-hover: #917243;
+    --text-color: #1e293b;
+    --text-muted: #6b7280;
+    --navbar-bg: rgba(255, 255, 255, 0.95);
+    --navbar-text-color: #1F1F1F;
+    --card-border: #e5e7eb;
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --accent-blue: #3A86FF;
+    --transition-base: all 0.3s ease;
+}
+
+.dark-mode {
+    --background-main: #0f172a;
+    --card-bg: #1e293b;
+    --button-primary-bg: #4C78C9;
+    --text-color: #f1f5f9;
+    --text-muted: #9ca3af;
+    --navbar-bg: rgba(31, 31, 31, 0.95);
+    --navbar-text-color: #f1f5f9;
+    --card-border: #4b5563;
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --accent-blue: #93c5fd;
+}
+
+/* Base styles - Critical for layout */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--background-main);
+    color: var(--text-color);
+    font-size: clamp(0.875rem, 2vw, 0.9375rem);
+    line-height: 1.65;
+    overflow-x: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--bottom-nav-height);
+}
+
+/* Header styles - Critical for above-the-fold */
+.fintech-top-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--navbar-height);
+    background-color: var(--navbar-bg);
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.profile-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--text-color);
+}
+
+.profile-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.greeting-text {
+    font-size: clamp(0.75rem, 1.8vw, 0.875rem);
+    font-weight: 600;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: var(--transition-base);
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.icon-btn:hover {
+    background: var(--card-bg);
+    transform: translateY(-2px);
+}
+
+/* Main content area */
+.main-content {
+    flex: 1 0 auto;
+    margin-top: var(--navbar-height);
+    padding: 1rem;
+    min-height: calc(100vh - var(--navbar-height) - var(--bottom-nav-height));
+}
+
+/* Loading states */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(58, 134, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent-blue);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Button styles - Critical for interaction */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: clamp(0.875rem, 2vw, 0.9375rem);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition-base);
+    box-shadow: var(--card-shadow);
+}
+
+.btn-primary {
+    background: var(--button-primary-bg);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--button-primary-hover);
+    transform: translateY(-2px);
+}
+
+/* Responsive design - Critical breakpoints */
+@media (max-width: 767.98px) {
+    .fintech-top-header {
+        padding: 0.5rem;
+        height: auto;
+        min-height: var(--navbar-height);
+    }
+    
+    .greeting-text {
+        font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+        max-width: 100px;
+    }
+    
+    .main-content {
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .fintech-top-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .header-right {
+        gap: 0.25rem;
+    }
+    
+    .greeting-text {
+        max-width: 80px;
+    }
+}
+
+/* Utility classes */
+.d-none { display: none !important; }
+.d-flex { display: flex !important; }
+.text-center { text-align: center; }
+.w-100 { width: 100%; }
+.mb-0 { margin-bottom: 0 !important; }
+.mt-0 { margin-top: 0 !important; }
+
+/* Focus styles for accessibility */
+.btn:focus,
+.icon-btn:focus {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
