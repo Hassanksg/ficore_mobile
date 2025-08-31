@@ -5,14 +5,9 @@
             <i class="bi bi-clock-history me-2"></i>
             {{ t('general_recent_activity', default='Recent Activity') | e }}
         </h6>
-        <div class="sidebar-controls">
-            <button class="btn btn-sm btn-outline-secondary sidebar-collapse" onclick="collapseSidebar()" aria-label="{{ t('general_collapse_sidebar', default='Collapse sidebar') | e }}" id="collapseBtn">
-                <i class="bi bi-dash-square"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-secondary sidebar-toggle" onclick="toggleActivitySidebar()" aria-label="{{ t('general_toggle_sidebar', default='Toggle sidebar') | e }}">
-                <i class="bi bi-chevron-right" id="sidebarToggleIcon"></i>
-            </button>
-        </div>
+        <button class="btn btn-sm btn-outline-secondary sidebar-toggle" onclick="toggleActivitySidebar()" aria-label="{{ t('general_toggle_sidebar', default='Toggle sidebar') | e }}">
+            <i class="bi bi-chevron-right" id="sidebarToggleIcon"></i>
+        </button>
     </div>
     
     <div class="sidebar-content" id="sidebarContent">
@@ -80,28 +75,15 @@
     font-size: 0.9rem;
 }
 
-.sidebar-controls {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.sidebar-toggle, .sidebar-collapse {
+.sidebar-toggle {
     padding: 0.25rem 0.5rem;
     border-radius: 6px;
     transition: all 0.2s ease;
 }
 
-.sidebar-toggle:hover, .sidebar-collapse:hover {
+.sidebar-toggle:hover {
     background-color: rgba(0, 123, 255, 0.1);
     border-color: #007bff;
-}
-
-.recent-activity-sidebar.collapsed {
-    right: -320px;
-}
-
-.recent-activity-sidebar.collapsed .sidebar-content {
-    display: none;
 }
 
 .sidebar-content {
@@ -236,54 +218,19 @@
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Mobile responsive - Bottom sheet style */
+/* Mobile responsive */
 @media (max-width: 768px) {
     .recent-activity-sidebar {
-        position: fixed;
-        top: auto;
-        bottom: -400px;
-        left: 0;
-        right: 0;
-        width: 100%;
-        max-height: 50vh;
-        transform: none;
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-        transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 1050;
-    }
-    
-    .recent-activity-sidebar.expanded {
-        bottom: 0;
-        right: auto;
-    }
-    
-    .recent-activity-sidebar.collapsed {
-        bottom: -400px;
-        right: auto;
+        width: 280px;
+        right: -280px;
     }
     
     .sidebar-header {
-        padding: 0.75rem 1rem;
-        border-radius: 16px 16px 0 0;
-        position: relative;
-    }
-    
-    .sidebar-header::before {
-        content: '';
-        position: absolute;
-        top: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40px;
-        height: 4px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 2px;
+        padding: 0.75rem;
     }
     
     .sidebar-title {
         font-size: 0.85rem;
-        margin-top: 8px;
     }
     
     .activity-item {
@@ -297,45 +244,11 @@
     .activity-time {
         font-size: 0.7rem;
     }
-    
-    .activity-list {
-        max-height: calc(50vh - 120px);
-    }
 }
 
-/* Mobile toggle button */
-@media (max-width: 768px) {
-    .mobile-activity-toggle {
-        position: fixed;
-        bottom: 80px;
-        right: 16px;
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background: #007bff;
-        color: white;
-        border: none;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-        z-index: 1040;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        transition: all 0.3s ease;
-    }
-    
-    .mobile-activity-toggle:hover {
-        background: #0056b3;
-        transform: scale(1.1);
-    }
-    
-    .mobile-activity-toggle.hidden {
-        display: none;
-    }
-}
-
-@media (min-width: 769px) {
-    .mobile-activity-toggle {
+/* Hide on very small screens */
+@media (max-width: 576px) {
+    .recent-activity-sidebar {
         display: none;
     }
 }
@@ -370,40 +283,160 @@
 .dark-mode .activity-list::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.4);
 }
-
-/* Restore sidebar button */
-.restore-sidebar-btn {
-    position: fixed;
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
-    z-index: 1041;
-    padding: 0.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-}
-
-.restore-sidebar-btn:hover {
-    transform: translateY(-50%) scale(1.1);
-}
-
-@media (max-width: 768px) {
-    .restore-sidebar-btn {
-        bottom: 100px;
-        top: auto;
-        right: 16px;
-        transform: none;
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .restore-sidebar-btn:hover {
-        transform: scale(1.1);
-    }
-}
 </style>
+
+<script>
+let sidebarExpanded = false;
+let activityData = [];
+
+// Toggle sidebar visibility
+function toggleActivitySidebar() {
+    const sidebar = document.getElementById('recentActivitySidebar');
+    const icon = document.getElementById('sidebarToggleIcon');
+    
+    sidebarExpanded = !sidebarExpanded;
+    
+    if (sidebarExpanded) {
+        sidebar.classList.add('expanded');
+        icon.className = 'bi bi-chevron-left';
+        loadRecentActivitySidebar();
+    } else {
+        sidebar.classList.remove('expanded');
+        icon.className = 'bi bi-chevron-right';
+    }
+}
+
+// Load recent activity data
+function loadRecentActivitySidebar() {
+    {% if current_user.is_authenticated %}
+    fetch('{{ url_for("business.recent_activity") | e }}', { 
+        credentials: 'include',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to load activity');
+        return response.json();
+    })
+    .then(activities => {
+        activityData = activities;
+        renderSidebarActivities(activities.slice(0, 5)); // Show last 5 activities
+    })
+    .catch(error => {
+        console.error('Error loading sidebar activity:', error);
+        renderSidebarActivities([]);
+    });
+    {% endif %}
+}
+
+// Render activities in sidebar
+function renderSidebarActivities(activities) {
+    const activityList = document.getElementById('activityList');
+    
+    if (activities && activities.length > 0) {
+        activityList.innerHTML = activities.map(activity => `
+            <div class="activity-item">
+                <div class="activity-icon ${getActivityType(activity.type)}">
+                    <i class="bi ${getActivityIcon(activity.type)} ${getActivityIconColor(activity.type)}"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-description">${activity.description}</div>
+                    <div class="activity-time">${formatTimeAgo(activity.timestamp)}</div>
+                    ${activity.amount ? `<div class="activity-amount ${getAmountColor(activity.type)}">${formatCurrency(activity.amount)}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        activityList.innerHTML = `
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="bi bi-info-circle text-muted"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-description">{{ t('general_no_recent_activity', default='No recent activity') | e }}</div>
+                    <div class="activity-time">{{ t('general_start_adding', default='Start by adding transactions') | e }}</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Helper functions for activity rendering
+function getActivityType(type) {
+    const typeMap = {
+        'debtor_added': 'debtor',
+        'creditor_added': 'creditor',
+        'money_in': 'receipt',
+        'money_out': 'payment',
+        'forecast_added': 'forecast',
+        'fund_added': 'fund',
+        'report_generated': 'report'
+    };
+    return typeMap[type] || 'default';
+}
+
+function getActivityIcon(type) {
+    const iconMap = {
+        'debtor_added': 'bi-person-plus',
+        'creditor_added': 'bi-person-plus',
+        'money_in': 'bi-arrow-down-circle',
+        'money_out': 'bi-arrow-up-circle',
+        'forecast_added': 'bi-graph-up',
+        'fund_added': 'bi-piggy-bank',
+        'report_generated': 'bi-file-earmark-bar-graph',
+        'feedback_submitted': 'bi-star-fill'
+    };
+    return iconMap[type] || 'bi-circle';
+}
+
+function getActivityIconColor(type) {
+    const colorMap = {
+        'debtor_added': 'text-success',
+        'creditor_added': 'text-danger',
+        'money_in': 'text-success',
+        'money_out': 'text-danger',
+        'forecast_added': 'text-info',
+        'fund_added': 'text-warning',
+        'report_generated': 'text-secondary',
+        'feedback_submitted': 'text-warning'
+    };
+    return colorMap[type] || 'text-muted';
+}
+
+function getAmountColor(type) {
+    return type === 'money_in' || type === 'debtor_added' ? 'text-success' : 'text-danger';
+}
+
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - time) / 1000);
+
+    if (diffInSeconds < 60) return '{{ t("general_just_now", default="Just now") | e }}';
+    if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + '{{ t("general_minutes_ago", default="m ago") | e }}';
+    if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + '{{ t("general_hours_ago", default="h ago") | e }}';
+    return Math.floor(diffInSeconds / 86400) + '{{ t("general_days_ago", default="d ago") | e }}';
+}
+
+function formatCurrency(amount) {
+    if (!amount && amount !== 0) return '';
+    const value = typeof amount === "string" ? parseFloat(amount) : amount;
+    if (isNaN(value)) return '₦0';
+    return '₦' + value.toLocaleString('en-NG', {maximumFractionDigits: 0});
+}
+
+// Auto-expand sidebar on page load for desktop users
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.innerWidth > 768 && !localStorage.getItem('sidebarDisabled')) {
+        setTimeout(() => {
+            toggleActivitySidebar();
+        }, 1000);
+    }
+});
+
+// Remember user preference
+window.addEventListener('beforeunload', function() {
+    localStorage.setItem('sidebarExpanded', sidebarExpanded);
+});
+</script>
