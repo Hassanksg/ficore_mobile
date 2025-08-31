@@ -460,22 +460,22 @@ def initialize_app_data(app):
             }
                 
             for collection_name, config in collection_schemas.items():
-                if collection_name in collections:
-                    try:
-                        db_instance.command('collMod', collection_name, validator=config.get('validator', {}))
-                        logger.info(f"Updated validator for collection: {collection_name}", 
-                                    extra={'session_id': 'no-session-id'})
-                    except Exception as e:
-                        logger.error(f"Failed to update validator for collection {collection_name}: {str(e)}", 
-                                    exc_info=True, extra={'session_id': 'no-session-id'})
-                        raise
-                else:
+                if collection_name not in collections:
                     try:
                         db_instance.create_collection(collection_name, validator=config.get('validator', {}))
                         logger.info(f"{trans('general_collection_created', default='Created collection')}: {collection_name}", 
                                    extra={'session_id': 'no-session-id'})
                     except Exception as e:
                         logger.error(f"Failed to create collection {collection_name}: {str(e)}", 
+                                    exc_info=True, extra={'session_id': 'no-session-id'})
+                        raise
+                else:
+                    try:
+                        db_instance.command('collMod', collection_name, validator=config.get('validator', {}))
+                        logger.info(f"Updated validator for collection: {collection_name}", 
+                                    extra={'session_id': 'no-session-id'})
+                    except Exception as e:
+                        logger.error(f"Failed to update validator for collection {collection_name}: {str(e)}", 
                                     exc_info=True, extra={'session_id': 'no-session-id'})
                         raise
                 
