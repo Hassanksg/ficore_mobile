@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reports_comprehensive_pl', default='Comprehensive P&L Statement') }} - Business Finance{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Back Button -->
+    <div class="d-flex align-items-center mb-4">
+        <button onclick="history.back()" class="btn btn-outline-secondary me-3" aria-label="{{ t('general_back', default='Back') | e }}">
+            <i class="bi bi-arrow-left"></i> {{ t('general_back', default='Back') | e }}
+        </button>
+        <a href="{{ url_for('reports.index') | e }}" class="btn btn-link text-decoration-none">
+            <i class="bi bi-file-earmark-text"></i> {{ t('reports_back_to_reports', default='Back to Reports') | e }}
+        </a>
+    </div>
+
+    <div class="page-title mb-4">
+        <h1>{{ t('reports_comprehensive_pl', default='Comprehensive P&L Statement') }}</h1>
+        <small class="subtext">{{ t('comprehensive_pl_description', default='Detailed profit and loss analysis with performance insights and metrics.') }}</small>
+    </div>
+    
+    {% if not can_interact %}
+    <div class="alert alert-warning mt-3">
+        {{ t('read_only_mode', default='Your trial has expired. You can view your data but cannot generate new reports. Subscribe to continue.') }}
+        <a href="{{ url_for('subscribe.index') }}" class="btn btn-primary btn-sm ms-2">{{ t('subscribe_now', default='Subscribe Now') }}</a>
+    </div>
+    {% endif %}
+
+    {% if can_interact %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>{{ t('report_filters', default='Report Filters') }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="{{ form.start_date.id }}" class="form-label">{{ form.start_date.label }}</label>
+                        {{ form.start_date(class="form-control") }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ form.end_date.id }}" class="form-label">{{ form.end_date.label }}</label>
+                        {{ form.end_date(class="form-control") }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ form.format.id }}" class="form-label">{{ t('report_format', default='Format') }}</label>
+                        {{ form.format(class="form-control") }}
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        {{ form.submit(class="btn btn-primary w-100") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if pl_data and pl_data.cashflows %}
+    {% set income_items = pl_data.cashflows | selectattr('type', 'equalto', 'receipt') | list %}
+    {% set expense_items = pl_data.cashflows | selectattr('type', 'equalto', 'payment') | list %}
+    {% set total_income = income_items | sum(attribute='amount') | float %}
+    {% set total_expenses = expense_items | sum(attribute='amount') | float %}
+    {% set net_profit = total_income - total_expenses %}
+
+    <!-- Executive Summary -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>Executive Summary</h4>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                        <i class="fas fa-arrow-up text-success fa-2x mb-2"></i>
+                        <h5 class="text-success">Total Revenue</h5>
+                        <h3 class="text-success">{{ total_income | format_currency }}</h3>
+                        <small class="text-muted">{{ income_items | length }} transactions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                        <i class="fas fa-arrow-down text-danger fa-2x mb-2"></i>
+                        <h5 class="text-danger">Total Expenses</h5>
+                        <h3 class="text-danger">{{ total_expenses | format_currency }}</h3>
+                        <small class="text-muted">{{ expense_items | length }} transactions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-{% if net_profit >= 0 %}success{% else %}danger{% endif %} bg-opacity-10 rounded">
+                        <i class="fas fa-{% if net_profit >= 0 %}trophy{% else %}exclamation-triangle{% endif %} {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %} fa-2x mb-2"></i>
+                        <h5 class="{% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">Net {{ 'Profit' if net_profit >= 0 else 'Loss' }}</h5>
+                        <h3 class="{% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ net_profit | abs | format_currency }}</h3>
+                        <small class="text-muted">
+                            {% if total_income > 0 %}
+                                {{ ((net_profit / total_income) * 100) | round(1) }}% margin
+                            {% else %}
+                                N/A margin
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                        <i class="fas fa-calculator text-info fa-2x mb-2"></i>
+                        <h5 class="text-info">Avg Transaction</h5>
+                        <h3 class="text-info">
+                            {% if (income_items | length + expense_items | length) > 0 %}
+                                {{ ((total_income + total_expenses) / (income_items | length + expense_items | length)) | format_currency }}
+                            {% else %}
+                                {{ 0 | format_currency }}
+                            {% endif %}
+                        </h3>
+                        <small class="text-muted">All transactions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Analysis -->
+    {% if income_items %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Revenue Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Revenue Metrics</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Total Transactions:</strong> {{ income_items | length }}</li>
+                        <li><strong>Average per Transaction:</strong> {{ (total_income / income_items | length) | format_currency }}</li>
+                        <li><strong>Highest Transaction:</strong> {{ income_items | max(attribute='amount') | attr('amount') | format_currency }}</li>
+                        <li><strong>Lowest Transaction:</strong> {{ income_items | min(attribute='amount') | attr('amount') | format_currency }}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Revenue by Payment Method</h6>
+                    {% set income_by_method = {} %}
+                    {% for item in income_items %}
+                        {% set method = item.method or 'Other' %}
+                        {% if income_by_method.update({method: (income_by_method.get(method, 0) + item.amount)}) %}{% endif %}
+                    {% endfor %}
+                    
+                    {% for method, amount in income_by_method.items() | sort(attribute='1', reverse=true) %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ method }}:</span>
+                        <span class="text-success">
+                            {{ amount | format_currency }}
+                            <small class="text-muted">({{ ((amount / total_income) * 100) | round(1) }}%)</small>
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Expense Analysis -->
+    {% if expense_items %}
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Expense Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Expense Metrics</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Total Transactions:</strong> {{ expense_items | length }}</li>
+                        <li><strong>Average per Transaction:</strong> {{ (total_expenses / expense_items | length) | format_currency }}</li>
+                        <li><strong>Highest Transaction:</strong> {{ expense_items | max(attribute='amount') | attr('amount') | format_currency }}</li>
+                        <li><strong>Lowest Transaction:</strong> {{ expense_items | min(attribute='amount') | attr('amount') | format_currency }}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Expenses by Payment Method</h6>
+                    {% set expense_by_method = {} %}
+                    {% for item in expense_items %}
+                        {% set method = item.method or 'Other' %}
+                        {% if expense_by_method.update({method: (expense_by_method.get(method, 0) + item.amount)}) %}{% endif %}
+                    {% endfor %}
+                    
+                    {% for method, amount in expense_by_method.items() | sort(attribute='1', reverse=true) %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ method }}:</span>
+                        <span class="text-danger">
+                            {{ amount | format_currency }}
+                            <small class="text-muted">({{ ((amount / total_expenses) * 100) | round(1) }}%)</small>
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Performance Indicators -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Performance Indicators</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                {% if income_items and expense_items %}
+                {% set avg_income_per_transaction = total_income / income_items | length %}
+                {% set avg_expense_per_transaction = total_expenses / expense_items | length %}
+                {% set transaction_efficiency = avg_income_per_transaction / avg_expense_per_transaction if avg_expense_per_transaction > 0 else 0 %}
+                
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Revenue per Transaction</h6>
+                        <h4 class="text-success">{{ avg_income_per_transaction | format_currency }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Cost per Transaction</h6>
+                        <h4 class="text-danger">{{ avg_expense_per_transaction | format_currency }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Efficiency Ratio</h6>
+                        <h4 class="text-info">{{ transaction_efficiency | round(2) }}x</h4>
+                        <small class="text-muted">Revenue/Cost ratio</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Break-even Point</h6>
+                        <h4 class="text-warning">{{ total_expenses | format_currency }}</h4>
+                        <small class="text-muted">Revenue needed</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Transactions</h5>
+            <span class="badge bg-primary">{{ pl_data.cashflows | length }} total</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Party</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cf in pl_data.cashflows[:15] %}
+                        <tr>
+                            <td>{{ cf.created_at[:10] }}</td>
+                            <td>{{ cf.party_name }}</td>
+                            <td>
+                                <span class="badge bg-{% if cf.type == 'receipt' %}success{% else %}danger{% endif %}">
+                                    {{ cf.type }}
+                                </span>
+                            </td>
+                            <td class="{% if cf.type == 'receipt' %}text-success{% else %}text-danger{% endif %}">
+                                {{ cf.amount | format_currency }}
+                            </td>
+                            <td>{{ cf.method }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if pl_data.cashflows | length > 15 %}
+            <div class="text-center mt-3">
+                <small class="text-muted">Showing 15 most recent transactions</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">{{ t('no_transaction_data', default='No transaction data available') }}</h4>
+        <p class="text-muted">{{ t('add_transactions_first', default='Add some transactions to see your comprehensive P&L analysis.') }}</p>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>{{ t('add_transactions', default='Add Transactions') }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
