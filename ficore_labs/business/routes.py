@@ -19,7 +19,7 @@ def home():
         lang = session.get('lang', 'en')
 
         # Check trial/subscription status
-        is_read_only = not current_user.is_subscribed and not current_user.is_trial_active()
+        is_read_only = not (current_user.is_subscribed or current_user.is_trial_active())
 
         # Fetch debt summary
         creditors_pipeline = [
@@ -95,6 +95,9 @@ def view_data():
         user_id = current_user.id
         lang = session.get('lang', 'en')
 
+        # Check trial/subscription status
+        is_read_only = not (current_user.is_subscribed or current_user.is_trial_active())
+
         # Fetch debt records
         debt_records = list(db.records.find({'user_id': user_id}).sort('created_at', -1).limit(50))
         for record in debt_records:
@@ -118,7 +121,7 @@ def view_data():
             cashflows=cashflows,
             title=trans('view_data_title', lang=lang, default='View Financial Data'),
             format_currency=utils.format_currency,
-            is_read_only=True
+            is_read_only=is_read_only
         )
     except Exception as e:
         logger.error(
