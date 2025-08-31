@@ -450,7 +450,6 @@
                       'anonymous'),
             loadScript('{{ asset_url("js/scripts.js") | e }}'),
             loadScript('{{ asset_url("js/interactivity.js") | e }}'),
-            loadScript('{{ asset_url("js/sidebar_enhancements.js") | e }}')
         ]).then(() => {
             console.log('All scripts loaded successfully');
             if (typeof initializeComponents === 'function') {
