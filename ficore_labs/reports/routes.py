@@ -597,6 +597,239 @@ def forecasts():
             can_interact=can_interact
         ), 400
 
+@reports_bp.route('/financial_summary', methods=['GET', 'POST'])
+@login_required
+@utils.requires_role(['trader', 'startup', 'admin'])
+@utils.limiter.limit('10 per minute')
+def financial_summary():
+    form = ReportForm()
+    can_interact = utils.can_user_interact(current_user)
+    if not can_interact:
+        logger.warning(
+            f"Subscription required for user {current_user.id} to generate financial summary",
+            extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+        )
+        flash(trans('subscription_required', default='Subscription required to generate reports. Please subscribe.'), 'warning')
+        return redirect(url_for('subscribe_bp.subscribe'))
+    
+    summary_data = {}
+    query = {'user_id': str(current_user.id)}
+    
+    if form.validate_on_submit():
+        try:
+            if form.format.data not in ['html', 'pdf', 'csv']:
+                logger.error(
+                    f"Invalid format {form.format.data} for financial summary by user {current_user.id}",
+                    extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+                )
+                flash(trans('reports_invalid_format', default='Invalid report format'), 'danger')
+                return redirect(url_for('reports.financial_summary'))
+            
+            db = utils.get_mongo_db()
+            date_query = {}
+            
+            if form.start_date.data:
+                start_datetime = datetime.combine(form.start_date.data, datetime.min.time(), tzinfo=ZoneInfo("UTC"))
+                date_query['created_at'] = {'$gte': start_datetime}
+            if form.end_date.data:
+                end_datetime = datetime.combine(form.end_date.data, datetime.max.time(), tzinfo=ZoneInfo("UTC"))
+                date_query['created_at'] = date_query.get('created_at', {}) | {'$lte': end_datetime}
+            
+            # Combine query with date filter
+            full_query = {**query, **date_query}
+            
+            # Get all financial data
+            cashflows = [to_dict_cashflow(cf) for cf in db.cashflows.find(full_query).sort('created_at', -1)]
+            records = [to_dict_record(r) for r in db.records.find(full_query).sort('created_at', -1)]
+            
+            # Get funds and forecasts for startup users
+            funds = []
+            forecasts = []
+            if current_user.role in ['startup', 'admin']:
+                funds = [to_dict_fund(f) for f in db.funds.find(full_query).sort('created_at', -1)]
+                forecasts = [to_dict_forecast(f) for f in db.forecasts.find(full_query).sort('created_at', -1)]
+            
+            summary_data = {
+                'cashflows': cashflows,
+                'records': records,
+                'funds': funds,
+                'forecasts': forecasts,
+                'period_start': form.start_date.data,
+                'period_end': form.end_date.data
+            }
+            
+            output_format = form.format.data
+            logger.info(
+                f"Generating financial summary for user {current_user.id}, format: {output_format}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            
+            if output_format == 'pdf':
+                return generate_financial_summary_pdf(summary_data)
+            elif output_format == 'csv':
+                return generate_financial_summary_csv(summary_data)
+                
+        except pymongo.errors.PyMongoError as e:
+            logger.error(
+                f"MongoDB error generating financial summary for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+        except Exception as e:
+            logger.error(
+                f"Error generating financial summary for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+    else:
+        try:
+            db = utils.get_mongo_db()
+            cashflows = [to_dict_cashflow(cf) for cf in db.cashflows.find(query).sort('created_at', -1)]
+            records = [to_dict_record(r) for r in db.records.find(query).sort('created_at', -1)]
+            
+            funds = []
+            forecasts = []
+            if current_user.role in ['startup', 'admin']:
+                funds = [to_dict_fund(f) for f in db.funds.find(query).sort('created_at', -1)]
+                forecasts = [to_dict_forecast(f) for f in db.forecasts.find(query).sort('created_at', -1)]
+            
+            summary_data = {
+                'cashflows': cashflows,
+                'records': records,
+                'funds': funds,
+                'forecasts': forecasts,
+                'period_start': None,
+                'period_end': None
+            }
+        except pymongo.errors.PyMongoError as e:
+            logger.error(
+                f"MongoDB error fetching data for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+        except Exception as e:
+            logger.error(
+                f"Error fetching data for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+    
+    logger.info(
+        f"Rendering financial summary page for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return render_template(
+        'reports/financial_summary.html',
+        form=form,
+        summary_data=summary_data,
+        title=trans('reports_financial_summary', default='Financial Summary Report', lang=session.get('lang', 'en')),
+        can_interact=can_interact
+    )
+
+@reports_bp.route('/comprehensive_pl', methods=['GET', 'POST'])
+@login_required
+@utils.requires_role(['trader', 'startup', 'admin'])
+@utils.limiter.limit('10 per minute')
+def comprehensive_pl():
+    form = ReportForm()
+    can_interact = utils.can_user_interact(current_user)
+    if not can_interact:
+        logger.warning(
+            f"Subscription required for user {current_user.id} to generate comprehensive P&L",
+            extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+        )
+        flash(trans('subscription_required', default='Subscription required to generate reports. Please subscribe.'), 'warning')
+        return redirect(url_for('subscribe_bp.subscribe'))
+    
+    pl_data = {}
+    query = {'user_id': str(current_user.id)}
+    
+    if form.validate_on_submit():
+        try:
+            if form.format.data not in ['html', 'pdf', 'csv']:
+                logger.error(
+                    f"Invalid format {form.format.data} for comprehensive P&L by user {current_user.id}",
+                    extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+                )
+                flash(trans('reports_invalid_format', default='Invalid report format'), 'danger')
+                return redirect(url_for('reports.comprehensive_pl'))
+            
+            db = utils.get_mongo_db()
+            date_query = {}
+            
+            if form.start_date.data:
+                start_datetime = datetime.combine(form.start_date.data, datetime.min.time(), tzinfo=ZoneInfo("UTC"))
+                date_query['created_at'] = {'$gte': start_datetime}
+            if form.end_date.data:
+                end_datetime = datetime.combine(form.end_date.data, datetime.max.time(), tzinfo=ZoneInfo("UTC"))
+                date_query['created_at'] = date_query.get('created_at', {}) | {'$lte': end_datetime}
+            
+            full_query = {**query, **date_query}
+            cashflows = [to_dict_cashflow(cf) for cf in db.cashflows.find(full_query).sort('created_at', -1)]
+            
+            pl_data = {
+                'cashflows': cashflows,
+                'period_start': form.start_date.data,
+                'period_end': form.end_date.data
+            }
+            
+            output_format = form.format.data
+            logger.info(
+                f"Generating comprehensive P&L for user {current_user.id}, format: {output_format}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            
+            if output_format == 'pdf':
+                return generate_comprehensive_pl_pdf(pl_data)
+            elif output_format == 'csv':
+                return generate_comprehensive_pl_csv(pl_data)
+                
+        except pymongo.errors.PyMongoError as e:
+            logger.error(
+                f"MongoDB error generating comprehensive P&L for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+        except Exception as e:
+            logger.error(
+                f"Error generating comprehensive P&L for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+    else:
+        try:
+            db = utils.get_mongo_db()
+            cashflows = [to_dict_cashflow(cf) for cf in db.cashflows.find(query).sort('created_at', -1)]
+            pl_data = {
+                'cashflows': cashflows,
+                'period_start': None,
+                'period_end': None
+            }
+        except pymongo.errors.PyMongoError as e:
+            logger.error(
+                f"MongoDB error fetching data for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+        except Exception as e:
+            logger.error(
+                f"Error fetching data for user {current_user.id}: {str(e)}",
+                extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+            )
+            flash(trans('reports_generation_error', default='An error occurred'), 'danger')
+    
+    logger.info(
+        f"Rendering comprehensive P&L page for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return render_template(
+        'reports/comprehensive_pl.html',
+        form=form,
+        pl_data=pl_data,
+        title=trans('reports_comprehensive_pl', default='Comprehensive P&L Statement', lang=session.get('lang', 'en')),
+        can_interact=can_interact
+    )
+
 @reports_bp.route('/investor_reports', methods=['GET', 'POST'])
 @login_required
 @utils.requires_role(['startup', 'admin'])
@@ -831,100 +1064,244 @@ def generate_profit_loss_pdf(cashflows):
     p = canvas.Canvas(buffer, pagesize=A4)
     header_height = 0.7
     extra_space = 0.2
-    row_height = 0.3
+    row_height = 0.25
     bottom_margin = 0.5
     max_y = 10.5
     title_y = max_y - header_height - extra_space
-    page_height = (max_y - bottom_margin) * inch
-    rows_per_page = int((page_height - (title_y - 0.6) * inch) / (row_height * inch))
-
-    def draw_table_headers(y):
-        p.setFillColor(colors.black)
-        p.drawString(1 * inch, y * inch, trans('general_date', default='Date'))
-        p.drawString(2.5 * inch, y * inch, trans('general_party_name', default='Party Name'))
-        p.drawString(4 * inch, y * inch, trans('general_type', default='Type'))
-        p.drawString(5 * inch, y * inch, trans('general_amount', default='Amount'))
-        return y - row_height
-
+    
+    # Draw header
     draw_ficore_pdf_header(p, current_user, y_start=max_y)
-    p.setFont("Helvetica", 12)
-    p.drawString(1 * inch, title_y * inch, trans('reports_profit_loss_report', default='Profit/Loss Report'))
+    
+    # Title and generation date
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(1 * inch, title_y * inch, trans('reports_profit_loss_report', default='Profit & Loss Statement'))
+    p.setFont("Helvetica", 10)
     p.drawString(1 * inch, (title_y - 0.3) * inch, f"{trans('reports_generated_on', default='Generated on')}: {utils.format_date(datetime.now(timezone.utc))}")
-    y = title_y - 0.6
-    y = draw_table_headers(y)
-
+    
+    y = title_y - 0.7
+    
+    # Calculate totals and categorize
     total_income = 0
     total_expense = 0
-    row_count = 0
-
-    for t in cashflows:
-        if row_count >= rows_per_page:
-            p.showPage()
-            draw_ficore_pdf_header(p, current_user, y_start=max_y)
-            y = title_y - 0.6
-            y = draw_table_headers(y)
-            row_count = 0
-
-        p.drawString(1 * inch, y * inch, utils.format_date(t['created_at']))
-        p.drawString(2.5 * inch, y * inch, utils.sanitize_input(t['party_name'], max_length=100))
-        p.drawString(4 * inch, y * inch, trans(t['type'], default=t['type']))
-        p.drawString(5 * inch, y * inch, utils.format_currency(t['amount']))
-        if t['type'] == 'receipt':
-            total_income += t['amount']
+    income_items = []
+    expense_items = []
+    
+    for cf in cashflows:
+        if cf['type'] == 'receipt':
+            total_income += cf['amount']
+            income_items.append(cf)
         else:
-            total_expense += t['amount']
-        y -= row_height
-        row_count += 1
-
-    if row_count + 3 <= rows_per_page:
-        y -= row_height
-        p.drawString(1 * inch, y * inch, f"{trans('reports_total_income', default='Total Income')}: {utils.format_currency(total_income)}")
-        y -= row_height
-        p.drawString(1 * inch, y * inch, f"{trans('reports_total_expense', default='Total Expense')}: {utils.format_currency(total_expense)}")
-        y -= row_height
-        p.drawString(1 * inch, y * inch, f"{trans('reports_net_profit', default='Net Profit')}: {utils.format_currency(total_income - total_expense)}")
-    else:
+            total_expense += cf['amount']
+            expense_items.append(cf)
+    
+    net_profit = total_income - total_expense
+    
+    # P&L Summary Section
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(1 * inch, y * inch, "PROFIT & LOSS SUMMARY")
+    y -= 0.4
+    
+    # Income Section
+    p.setFont("Helvetica-Bold", 12)
+    p.setFillColor(colors.green)
+    p.drawString(1.2 * inch, y * inch, "REVENUE")
+    p.setFillColor(colors.black)
+    y -= 0.3
+    
+    p.setFont("Helvetica", 11)
+    p.drawString(1.4 * inch, y * inch, f"Total Income: {utils.format_currency(total_income)}")
+    p.drawString(4.5 * inch, y * inch, f"({len(income_items)} transactions)")
+    y -= 0.4
+    
+    # Expenses Section
+    p.setFont("Helvetica-Bold", 12)
+    p.setFillColor(colors.red)
+    p.drawString(1.2 * inch, y * inch, "EXPENSES")
+    p.setFillColor(colors.black)
+    y -= 0.3
+    
+    p.setFont("Helvetica", 11)
+    p.drawString(1.4 * inch, y * inch, f"Total Expenses: {utils.format_currency(total_expense)}")
+    p.drawString(4.5 * inch, y * inch, f"({len(expense_items)} transactions)")
+    y -= 0.4
+    
+    # Net Profit/Loss
+    p.setFont("Helvetica-Bold", 12)
+    profit_color = colors.green if net_profit >= 0 else colors.red
+    p.setFillColor(profit_color)
+    p.drawString(1.2 * inch, y * inch, f"NET {'PROFIT' if net_profit >= 0 else 'LOSS'}: {utils.format_currency(abs(net_profit))}")
+    p.setFillColor(colors.black)
+    y -= 0.5
+    
+    # Detailed Transactions Section
+    if y < 3:  # Start new page if not enough space
         p.showPage()
         draw_ficore_pdf_header(p, current_user, y_start=max_y)
-        y = title_y - 0.6
-        p.drawString(1 * inch, y * inch, f"{trans('reports_total_income', default='Total Income')}: {utils.format_currency(total_income)}")
-        y -= row_height
-        p.drawString(1 * inch, y * inch, f"{trans('reports_total_expense', default='Total Expense')}: {utils.format_currency(total_expense)}")
-        y -= row_height
-        p.drawString(1 * inch, y * inch, f"{trans('reports_net_profit', default='Net Profit')}: {utils.format_currency(total_income - total_expense)}")
+        y = title_y - 0.7
+    
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(1 * inch, y * inch, "DETAILED TRANSACTIONS")
+    y -= 0.4
+    
+    def draw_transaction_table_headers(y_pos):
+        p.setFont("Helvetica-Bold", 9)
+        p.setFillColor(colors.grey)
+        p.rect(1 * inch, (y_pos - 0.15) * inch, 6.5 * inch, 0.2 * inch, fill=1)
+        p.setFillColor(colors.white)
+        p.drawString(1.1 * inch, y_pos * inch, "Date")
+        p.drawString(2.3 * inch, y_pos * inch, "Party Name")
+        p.drawString(4.2 * inch, y_pos * inch, "Type")
+        p.drawString(5.2 * inch, y_pos * inch, "Amount")
+        p.drawString(6.5 * inch, y_pos * inch, "Method")
+        p.setFillColor(colors.black)
+        return y_pos - 0.3
+    
+    # Income transactions
+    if income_items:
+        p.setFont("Helvetica-Bold", 11)
+        p.setFillColor(colors.green)
+        p.drawString(1.2 * inch, y * inch, f"INCOME TRANSACTIONS ({len(income_items)})")
+        p.setFillColor(colors.black)
+        y -= 0.3
+        
+        y = draw_transaction_table_headers(y)
+        
+        for item in sorted(income_items, key=lambda x: x['created_at'], reverse=True):
+            if y < 1:
+                p.showPage()
+                draw_ficore_pdf_header(p, current_user, y_start=max_y)
+                y = title_y - 0.7
+                y = draw_transaction_table_headers(y)
+            
+            p.setFont("Helvetica", 8)
+            p.drawString(1.1 * inch, y * inch, utils.format_date(item['created_at'])[:10])
+            p.drawString(2.3 * inch, y * inch, item['party_name'][:15])
+            p.drawString(4.2 * inch, y * inch, item['type'])
+            p.setFillColor(colors.green)
+            p.drawString(5.2 * inch, y * inch, utils.format_currency(item['amount']))
+            p.setFillColor(colors.black)
+            p.drawString(6.5 * inch, y * inch, item['method'][:8])
+            y -= row_height
+        
+        y -= 0.2
+    
+    # Expense transactions
+    if expense_items:
+        if y < 2:
+            p.showPage()
+            draw_ficore_pdf_header(p, current_user, y_start=max_y)
+            y = title_y - 0.7
+        
+        p.setFont("Helvetica-Bold", 11)
+        p.setFillColor(colors.red)
+        p.drawString(1.2 * inch, y * inch, f"EXPENSE TRANSACTIONS ({len(expense_items)})")
+        p.setFillColor(colors.black)
+        y -= 0.3
+        
+        y = draw_transaction_table_headers(y)
+        
+        for item in sorted(expense_items, key=lambda x: x['created_at'], reverse=True):
+            if y < 1:
+                p.showPage()
+                draw_ficore_pdf_header(p, current_user, y_start=max_y)
+                y = title_y - 0.7
+                y = draw_transaction_table_headers(y)
+            
+            p.setFont("Helvetica", 8)
+            p.drawString(1.1 * inch, y * inch, utils.format_date(item['created_at'])[:10])
+            p.drawString(2.3 * inch, y * inch, item['party_name'][:15])
+            p.drawString(4.2 * inch, y * inch, item['type'])
+            p.setFillColor(colors.red)
+            p.drawString(5.2 * inch, y * inch, utils.format_currency(item['amount']))
+            p.setFillColor(colors.black)
+            p.drawString(6.5 * inch, y * inch, item['method'][:8])
+            y -= row_height
 
     p.save()
     buffer.seek(0)
     logger.info(
-        f"Generated profit/loss PDF for user {current_user.id}",
+        f"Generated enhanced profit/loss PDF for user {current_user.id}",
         extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
     )
-    return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=profit_loss.pdf'})
+    return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=profit_loss_statement.pdf'})
 
 def generate_profit_loss_csv(cashflows):
     output = []
     output.extend(ficore_csv_header(current_user))
-    output.append([trans('general_date', default='Date'), trans('general_party_name', default='Party Name'), trans('general_type', default='Type'), trans('general_amount', default='Amount')])
-    total_income = 0
-    total_expense = 0
-    for t in cashflows:
-        output.append([utils.format_date(t['created_at']), utils.sanitize_input(t['party_name'], max_length=100), trans(t['type'], default=t['type']), utils.format_currency(t['amount'])])
-        if t['type'] == 'receipt':
-            total_income += t['amount']
-        else:
-            total_expense += t['amount']
-    output.append(['', '', '', f"{trans('reports_total_income', default='Total Income')}: {utils.format_currency(total_income)}"])
-    output.append(['', '', '', f"{trans('reports_total_expense', default='Total Expense')}: {utils.format_currency(total_expense)}"])
-    output.append(['', '', '', f"{trans('reports_net_profit', default='Net Profit')}: {utils.format_currency(total_income - total_expense)}"])
+    output.append([trans('reports_profit_loss_report', default='Profit & Loss Statement')])
+    output.append([f"{trans('reports_generated_on', default='Generated on')}: {utils.format_date(datetime.now(timezone.utc))}"])
+    output.append([])
+    
+    # Calculate totals
+    total_income = sum(cf['amount'] for cf in cashflows if cf['type'] == 'receipt')
+    total_expense = sum(cf['amount'] for cf in cashflows if cf['type'] == 'payment')
+    net_profit = total_income - total_expense
+    
+    # P&L Summary
+    output.append(['PROFIT & LOSS SUMMARY'])
+    output.append([])
+    output.append(['REVENUE'])
+    output.append(['Total Income', utils.format_currency(total_income)])
+    output.append(['Number of Income Transactions', len([cf for cf in cashflows if cf['type'] == 'receipt'])])
+    output.append([])
+    output.append(['EXPENSES'])
+    output.append(['Total Expenses', utils.format_currency(total_expense)])
+    output.append(['Number of Expense Transactions', len([cf for cf in cashflows if cf['type'] == 'payment'])])
+    output.append([])
+    output.append(['NET RESULT'])
+    output.append([f"Net {'Profit' if net_profit >= 0 else 'Loss'}", utils.format_currency(abs(net_profit))])
+    output.append(['Profit Margin %', f"{(net_profit / total_income * 100):.2f}%" if total_income > 0 else "N/A"])
+    output.append([])
+    
+    # Detailed transactions
+    output.append(['DETAILED TRANSACTIONS'])
+    output.append([])
+    
+    # Income transactions
+    income_items = [cf for cf in cashflows if cf['type'] == 'receipt']
+    if income_items:
+        output.append([f'INCOME TRANSACTIONS ({len(income_items)})'])
+        output.append(['Date', 'Party Name', 'Amount', 'Method'])
+        for cf in sorted(income_items, key=lambda x: x['created_at'], reverse=True):
+            output.append([
+                utils.format_date(cf['created_at']),
+                utils.sanitize_input(cf['party_name'], max_length=100),
+                utils.format_currency(cf['amount']),
+                cf['method']
+            ])
+        output.append(['Subtotal Income', '', utils.format_currency(total_income), ''])
+        output.append([])
+    
+    # Expense transactions
+    expense_items = [cf for cf in cashflows if cf['type'] == 'payment']
+    if expense_items:
+        output.append([f'EXPENSE TRANSACTIONS ({len(expense_items)})'])
+        output.append(['Date', 'Party Name', 'Amount', 'Method'])
+        for cf in sorted(expense_items, key=lambda x: x['created_at'], reverse=True):
+            output.append([
+                utils.format_date(cf['created_at']),
+                utils.sanitize_input(cf['party_name'], max_length=100),
+                utils.format_currency(cf['amount']),
+                cf['method']
+            ])
+        output.append(['Subtotal Expenses', '', utils.format_currency(total_expense), ''])
+        output.append([])
+    
+    # Final summary
+    output.append(['FINAL SUMMARY'])
+    output.append(['Total Income', utils.format_currency(total_income)])
+    output.append(['Total Expenses', utils.format_currency(total_expense)])
+    output.append([f"Net {'Profit' if net_profit >= 0 else 'Loss'}", utils.format_currency(abs(net_profit))])
+    
     buffer = StringIO()
     writer = csv.writer(buffer, lineterminator='\n')
     writer.writerows(output)
     buffer.seek(0)
     logger.info(
-        f"Generated profit/loss CSV for user {current_user.id}",
+        f"Generated enhanced profit/loss CSV for user {current_user.id}",
         extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
     )
-    return Response(buffer.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment;filename=profit_loss.csv'})
+    return Response(buffer.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment;filename=profit_loss_statement.csv'})
 
 def generate_debtors_creditors_pdf(records):
     buffer = BytesIO()
@@ -1331,6 +1708,537 @@ def generate_customer_report_pdf(report_data):
     p.save()
     buffer.seek(0)
     return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=customer_report.pdf'})
+
+def generate_financial_summary_pdf(summary_data):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    header_height = 0.7
+    extra_space = 0.2
+    row_height = 0.25
+    bottom_margin = 0.5
+    max_y = 10.5
+    title_y = max_y - header_height - extra_space
+    
+    # Draw header
+    draw_ficore_pdf_header(p, current_user, y_start=max_y)
+    
+    # Title and period
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(1 * inch, title_y * inch, trans('reports_financial_summary', default='Financial Summary Report'))
+    
+    period_text = ""
+    if summary_data.get('period_start') and summary_data.get('period_end'):
+        period_text = f"Period: {summary_data['period_start']} to {summary_data['period_end']}"
+    elif summary_data.get('period_start'):
+        period_text = f"From: {summary_data['period_start']}"
+    elif summary_data.get('period_end'):
+        period_text = f"Until: {summary_data['period_end']}"
+    else:
+        period_text = "All Time"
+    
+    p.setFont("Helvetica", 10)
+    p.drawString(1 * inch, (title_y - 0.3) * inch, period_text)
+    p.drawString(1 * inch, (title_y - 0.5) * inch, f"Generated: {utils.format_date(datetime.now(timezone.utc))}")
+    
+    y = title_y - 0.8
+    
+    # Financial Overview Section
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(1 * inch, y * inch, "Financial Overview")
+    y -= 0.3
+    
+    # Calculate totals
+    cashflows = summary_data.get('cashflows', [])
+    total_income = sum(cf['amount'] for cf in cashflows if cf['type'] == 'receipt')
+    total_expenses = sum(cf['amount'] for cf in cashflows if cf['type'] == 'payment')
+    net_profit = total_income - total_expenses
+    
+    records = summary_data.get('records', [])
+    total_receivables = sum(r['amount_owed'] for r in records if r['type'] == 'debtor')
+    total_payables = sum(r['amount_owed'] for r in records if r['type'] == 'creditor')
+    
+    funds = summary_data.get('funds', [])
+    total_funding = sum(f['amount'] for f in funds)
+    
+    p.setFont("Helvetica", 11)
+    overview_items = [
+        (f"Total Income: {utils.format_currency(total_income)}", colors.green),
+        (f"Total Expenses: {utils.format_currency(total_expenses)}", colors.red),
+        (f"Net Profit/Loss: {utils.format_currency(net_profit)}", colors.green if net_profit >= 0 else colors.red),
+        (f"Outstanding Receivables: {utils.format_currency(total_receivables)}", colors.blue),
+        (f"Outstanding Payables: {utils.format_currency(total_payables)}", colors.orange),
+    ]
+    
+    if total_funding > 0:
+        overview_items.append((f"Total Funding: {utils.format_currency(total_funding)}", colors.purple))
+    
+    for item_text, color in overview_items:
+        p.setFillColor(color)
+        p.drawString(1.2 * inch, y * inch, item_text)
+        y -= row_height
+        if y < 1:
+            p.showPage()
+            draw_ficore_pdf_header(p, current_user, y_start=max_y)
+            y = title_y - 0.8
+    
+    # Cash Flow Summary
+    if cashflows:
+        y -= 0.3
+        p.setFillColor(colors.black)
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(1 * inch, y * inch, "Recent Cash Flow Activity")
+        y -= 0.3
+        
+        p.setFont("Helvetica", 9)
+        p.drawString(1 * inch, y * inch, "Date")
+        p.drawString(2.2 * inch, y * inch, "Party")
+        p.drawString(3.8 * inch, y * inch, "Type")
+        p.drawString(4.8 * inch, y * inch, "Amount")
+        y -= 0.2
+        
+        for cf in cashflows[:10]:  # Show last 10 transactions
+            if y < 1:
+                p.showPage()
+                draw_ficore_pdf_header(p, current_user, y_start=max_y)
+                y = title_y - 0.8
+            
+            p.drawString(1 * inch, y * inch, utils.format_date(cf['created_at'])[:10])
+            p.drawString(2.2 * inch, y * inch, cf['party_name'][:20])
+            p.drawString(3.8 * inch, y * inch, cf['type'])
+            amount_color = colors.green if cf['type'] == 'receipt' else colors.red
+            p.setFillColor(amount_color)
+            p.drawString(4.8 * inch, y * inch, utils.format_currency(cf['amount']))
+            p.setFillColor(colors.black)
+            y -= row_height
+    
+    # Outstanding Items Summary
+    if records:
+        y -= 0.3
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(1 * inch, y * inch, "Outstanding Items Summary")
+        y -= 0.3
+        
+        debtors = [r for r in records if r['type'] == 'debtor']
+        creditors = [r for r in records if r['type'] == 'creditor']
+        
+        if debtors:
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(1.2 * inch, y * inch, f"Top Debtors ({len(debtors)} total):")
+            y -= 0.2
+            p.setFont("Helvetica", 9)
+            for debtor in sorted(debtors, key=lambda x: x['amount_owed'], reverse=True)[:5]:
+                if y < 1:
+                    p.showPage()
+                    draw_ficore_pdf_header(p, current_user, y_start=max_y)
+                    y = title_y - 0.8
+                p.drawString(1.4 * inch, y * inch, f"{debtor['name']}: {utils.format_currency(debtor['amount_owed'])}")
+                y -= row_height
+        
+        if creditors:
+            y -= 0.1
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(1.2 * inch, y * inch, f"Top Creditors ({len(creditors)} total):")
+            y -= 0.2
+            p.setFont("Helvetica", 9)
+            for creditor in sorted(creditors, key=lambda x: x['amount_owed'], reverse=True)[:5]:
+                if y < 1:
+                    p.showPage()
+                    draw_ficore_pdf_header(p, current_user, y_start=max_y)
+                    y = title_y - 0.8
+                p.drawString(1.4 * inch, y * inch, f"{creditor['name']}: {utils.format_currency(creditor['amount_owed'])}")
+                y -= row_height
+    
+    p.save()
+    buffer.seek(0)
+    logger.info(
+        f"Generated financial summary PDF for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=financial_summary.pdf'})
+
+def generate_financial_summary_csv(summary_data):
+    output = []
+    output.extend(ficore_csv_header(current_user))
+    
+    # Add report title and period
+    output.append([trans('reports_financial_summary', default='Financial Summary Report')])
+    
+    period_text = ""
+    if summary_data.get('period_start') and summary_data.get('period_end'):
+        period_text = f"Period: {summary_data['period_start']} to {summary_data['period_end']}"
+    elif summary_data.get('period_start'):
+        period_text = f"From: {summary_data['period_start']}"
+    elif summary_data.get('period_end'):
+        period_text = f"Until: {summary_data['period_end']}"
+    else:
+        period_text = "All Time"
+    
+    output.append([period_text])
+    output.append([f"Generated: {utils.format_date(datetime.now(timezone.utc))}"])
+    output.append([])
+    
+    # Financial Overview
+    cashflows = summary_data.get('cashflows', [])
+    total_income = sum(cf['amount'] for cf in cashflows if cf['type'] == 'receipt')
+    total_expenses = sum(cf['amount'] for cf in cashflows if cf['type'] == 'payment')
+    net_profit = total_income - total_expenses
+    
+    records = summary_data.get('records', [])
+    total_receivables = sum(r['amount_owed'] for r in records if r['type'] == 'debtor')
+    total_payables = sum(r['amount_owed'] for r in records if r['type'] == 'creditor')
+    
+    funds = summary_data.get('funds', [])
+    total_funding = sum(f['amount'] for f in funds)
+    
+    output.append(['FINANCIAL OVERVIEW'])
+    output.append(['Total Income', utils.format_currency(total_income)])
+    output.append(['Total Expenses', utils.format_currency(total_expenses)])
+    output.append(['Net Profit/Loss', utils.format_currency(net_profit)])
+    output.append(['Outstanding Receivables', utils.format_currency(total_receivables)])
+    output.append(['Outstanding Payables', utils.format_currency(total_payables)])
+    if total_funding > 0:
+        output.append(['Total Funding', utils.format_currency(total_funding)])
+    output.append([])
+    
+    # Cash Flow Details
+    if cashflows:
+        output.append(['CASH FLOW DETAILS'])
+        output.append(['Date', 'Party Name', 'Type', 'Amount', 'Method'])
+        for cf in cashflows:
+            output.append([
+                utils.format_date(cf['created_at']),
+                cf['party_name'],
+                cf['type'],
+                utils.format_currency(cf['amount']),
+                cf['method']
+            ])
+        output.append([])
+    
+    # Outstanding Items
+    if records:
+        output.append(['OUTSTANDING ITEMS'])
+        output.append(['Name', 'Type', 'Amount Owed', 'Contact', 'Date Created'])
+        for record in records:
+            output.append([
+                record['name'],
+                record['type'],
+                utils.format_currency(record['amount_owed']),
+                record['contact'],
+                utils.format_date(record['created_at'])
+            ])
+        output.append([])
+    
+    # Funding Details (for startups)
+    if funds:
+        output.append(['FUNDING DETAILS'])
+        output.append(['Source', 'Amount', 'Date Received', 'Status'])
+        for fund in funds:
+            output.append([
+                fund['source'],
+                utils.format_currency(fund['amount']),
+                utils.format_date(fund['date_received']),
+                fund['status']
+            ])
+    
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerows(output)
+    
+    logger.info(
+        f"Generated financial summary CSV for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return Response(buffer.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment;filename=financial_summary.csv'})
+
+def generate_comprehensive_pl_pdf(pl_data):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    header_height = 0.7
+    extra_space = 0.2
+    row_height = 0.25
+    bottom_margin = 0.5
+    max_y = 10.5
+    title_y = max_y - header_height - extra_space
+    
+    # Draw header
+    draw_ficore_pdf_header(p, current_user, y_start=max_y)
+    
+    # Title and period
+    p.setFont("Helvetica-Bold", 18)
+    p.drawString(1 * inch, title_y * inch, "COMPREHENSIVE PROFIT & LOSS STATEMENT")
+    
+    period_text = ""
+    if pl_data.get('period_start') and pl_data.get('period_end'):
+        period_text = f"Period: {pl_data['period_start']} to {pl_data['period_end']}"
+    elif pl_data.get('period_start'):
+        period_text = f"From: {pl_data['period_start']}"
+    elif pl_data.get('period_end'):
+        period_text = f"Until: {pl_data['period_end']}"
+    else:
+        period_text = "All Time Performance"
+    
+    p.setFont("Helvetica", 12)
+    p.drawString(1 * inch, (title_y - 0.3) * inch, period_text)
+    p.drawString(1 * inch, (title_y - 0.5) * inch, f"Generated: {utils.format_date(datetime.now(timezone.utc))}")
+    
+    y = title_y - 0.8
+    
+    # Analyze cash flows
+    cashflows = pl_data.get('cashflows', [])
+    income_items = [cf for cf in cashflows if cf['type'] == 'receipt']
+    expense_items = [cf for cf in cashflows if cf['type'] == 'payment']
+    
+    total_income = sum(cf['amount'] for cf in income_items)
+    total_expenses = sum(cf['amount'] for cf in expense_items)
+    net_profit = total_income - total_expenses
+    
+    # Group by method for analysis
+    income_by_method = {}
+    expense_by_method = {}
+    
+    for cf in income_items:
+        method = cf['method'] or 'Other'
+        income_by_method[method] = income_by_method.get(method, 0) + cf['amount']
+    
+    for cf in expense_items:
+        method = cf['method'] or 'Other'
+        expense_by_method[method] = expense_by_method.get(method, 0) + cf['amount']
+    
+    # Executive Summary
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(1 * inch, y * inch, "EXECUTIVE SUMMARY")
+    y -= 0.4
+    
+    # Key metrics in a box
+    p.setStrokeColor(colors.black)
+    p.setLineWidth(1)
+    p.rect(1 * inch, (y - 1.2) * inch, 6.5 * inch, 1.2 * inch)
+    
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(1.2 * inch, (y - 0.3) * inch, "KEY FINANCIAL METRICS")
+    
+    p.setFont("Helvetica", 11)
+    metrics = [
+        f"Total Revenue: {utils.format_currency(total_income)}",
+        f"Total Expenses: {utils.format_currency(total_expenses)}",
+        f"Net {'Profit' if net_profit >= 0 else 'Loss'}: {utils.format_currency(abs(net_profit))}",
+        f"Profit Margin: {(net_profit / total_income * 100):.1f}%" if total_income > 0 else "Profit Margin: N/A"
+    ]
+    
+    for i, metric in enumerate(metrics):
+        color = colors.green if 'Profit:' in metric and net_profit >= 0 else colors.red if 'Loss:' in metric else colors.black
+        p.setFillColor(color)
+        p.drawString(1.4 * inch, (y - 0.5 - i * 0.2) * inch, metric)
+    
+    p.setFillColor(colors.black)
+    y -= 1.5
+    
+    # Revenue Analysis
+    if income_items:
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(1 * inch, y * inch, "REVENUE ANALYSIS")
+        y -= 0.3
+        
+        p.setFont("Helvetica", 10)
+        p.drawString(1.2 * inch, y * inch, f"Total Transactions: {len(income_items)}")
+        p.drawString(3.5 * inch, y * inch, f"Average Transaction: {utils.format_currency(total_income / len(income_items))}")
+        y -= 0.3
+        
+        # Revenue by method
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(1.2 * inch, y * inch, "Revenue by Payment Method:")
+        y -= 0.2
+        
+        for method, amount in sorted(income_by_method.items(), key=lambda x: x[1], reverse=True):
+            percentage = (amount / total_income * 100) if total_income > 0 else 0
+            p.setFont("Helvetica", 9)
+            p.drawString(1.4 * inch, y * inch, f"{method}: {utils.format_currency(amount)} ({percentage:.1f}%)")
+            y -= 0.2
+        
+        y -= 0.2
+    
+    # Expense Analysis
+    if expense_items:
+        if y < 2:
+            p.showPage()
+            draw_ficore_pdf_header(p, current_user, y_start=max_y)
+            y = title_y - 0.8
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(1 * inch, y * inch, "EXPENSE ANALYSIS")
+        y -= 0.3
+        
+        p.setFont("Helvetica", 10)
+        p.drawString(1.2 * inch, y * inch, f"Total Transactions: {len(expense_items)}")
+        p.drawString(3.5 * inch, y * inch, f"Average Transaction: {utils.format_currency(total_expenses / len(expense_items))}")
+        y -= 0.3
+        
+        # Expenses by method
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(1.2 * inch, y * inch, "Expenses by Payment Method:")
+        y -= 0.2
+        
+        for method, amount in sorted(expense_by_method.items(), key=lambda x: x[1], reverse=True):
+            percentage = (amount / total_expenses * 100) if total_expenses > 0 else 0
+            p.setFont("Helvetica", 9)
+            p.drawString(1.4 * inch, y * inch, f"{method}: {utils.format_currency(amount)} ({percentage:.1f}%)")
+            y -= 0.2
+        
+        y -= 0.2
+    
+    # Performance Indicators
+    if y < 2:
+        p.showPage()
+        draw_ficore_pdf_header(p, current_user, y_start=max_y)
+        y = title_y - 0.8
+    
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(1 * inch, y * inch, "PERFORMANCE INDICATORS")
+    y -= 0.3
+    
+    # Calculate additional metrics
+    if len(income_items) > 0 and len(expense_items) > 0:
+        avg_income_per_transaction = total_income / len(income_items)
+        avg_expense_per_transaction = total_expenses / len(expense_items)
+        transaction_efficiency = avg_income_per_transaction / avg_expense_per_transaction if avg_expense_per_transaction > 0 else 0
+        
+        indicators = [
+            f"Revenue per Transaction: {utils.format_currency(avg_income_per_transaction)}",
+            f"Cost per Transaction: {utils.format_currency(avg_expense_per_transaction)}",
+            f"Transaction Efficiency Ratio: {transaction_efficiency:.2f}x",
+            f"Break-even Point: {utils.format_currency(total_expenses)} revenue needed"
+        ]
+        
+        for indicator in indicators:
+            p.setFont("Helvetica", 10)
+            p.drawString(1.2 * inch, y * inch, indicator)
+            y -= 0.25
+
+    p.save()
+    buffer.seek(0)
+    logger.info(
+        f"Generated comprehensive P&L PDF for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=comprehensive_pl_statement.pdf'})
+
+def generate_comprehensive_pl_csv(pl_data):
+    output = []
+    output.extend(ficore_csv_header(current_user))
+    
+    # Title and period
+    output.append(['COMPREHENSIVE PROFIT & LOSS STATEMENT'])
+    
+    period_text = ""
+    if pl_data.get('period_start') and pl_data.get('period_end'):
+        period_text = f"Period: {pl_data['period_start']} to {pl_data['period_end']}"
+    elif pl_data.get('period_start'):
+        period_text = f"From: {pl_data['period_start']}"
+    elif pl_data.get('period_end'):
+        period_text = f"Until: {pl_data['period_end']}"
+    else:
+        period_text = "All Time Performance"
+    
+    output.append([period_text])
+    output.append([f"Generated: {utils.format_date(datetime.now(timezone.utc))}"])
+    output.append([])
+    
+    # Analyze data
+    cashflows = pl_data.get('cashflows', [])
+    income_items = [cf for cf in cashflows if cf['type'] == 'receipt']
+    expense_items = [cf for cf in cashflows if cf['type'] == 'payment']
+    
+    total_income = sum(cf['amount'] for cf in income_items)
+    total_expenses = sum(cf['amount'] for cf in expense_items)
+    net_profit = total_income - total_expenses
+    
+    # Executive Summary
+    output.append(['EXECUTIVE SUMMARY'])
+    output.append([])
+    output.append(['Key Financial Metrics'])
+    output.append(['Total Revenue', utils.format_currency(total_income)])
+    output.append(['Total Expenses', utils.format_currency(total_expenses)])
+    output.append([f"Net {'Profit' if net_profit >= 0 else 'Loss'}", utils.format_currency(abs(net_profit))])
+    output.append(['Profit Margin %', f"{(net_profit / total_income * 100):.2f}%" if total_income > 0 else "N/A"])
+    output.append([])
+    
+    # Revenue Analysis
+    if income_items:
+        output.append(['REVENUE ANALYSIS'])
+        output.append(['Total Revenue Transactions', len(income_items)])
+        output.append(['Average Revenue per Transaction', utils.format_currency(total_income / len(income_items))])
+        output.append([])
+        
+        # Revenue by method
+        income_by_method = {}
+        for cf in income_items:
+            method = cf['method'] or 'Other'
+            income_by_method[method] = income_by_method.get(method, 0) + cf['amount']
+        
+        output.append(['Revenue by Payment Method'])
+        output.append(['Method', 'Amount', 'Percentage'])
+        for method, amount in sorted(income_by_method.items(), key=lambda x: x[1], reverse=True):
+            percentage = (amount / total_income * 100) if total_income > 0 else 0
+            output.append([method, utils.format_currency(amount), f"{percentage:.1f}%"])
+        output.append([])
+    
+    # Expense Analysis
+    if expense_items:
+        output.append(['EXPENSE ANALYSIS'])
+        output.append(['Total Expense Transactions', len(expense_items)])
+        output.append(['Average Expense per Transaction', utils.format_currency(total_expenses / len(expense_items))])
+        output.append([])
+        
+        # Expenses by method
+        expense_by_method = {}
+        for cf in expense_items:
+            method = cf['method'] or 'Other'
+            expense_by_method[method] = expense_by_method.get(method, 0) + cf['amount']
+        
+        output.append(['Expenses by Payment Method'])
+        output.append(['Method', 'Amount', 'Percentage'])
+        for method, amount in sorted(expense_by_method.items(), key=lambda x: x[1], reverse=True):
+            percentage = (amount / total_expenses * 100) if total_expenses > 0 else 0
+            output.append([method, utils.format_currency(amount), f"{percentage:.1f}%"])
+        output.append([])
+    
+    # Performance Indicators
+    output.append(['PERFORMANCE INDICATORS'])
+    if len(income_items) > 0 and len(expense_items) > 0:
+        avg_income_per_transaction = total_income / len(income_items)
+        avg_expense_per_transaction = total_expenses / len(expense_items)
+        transaction_efficiency = avg_income_per_transaction / avg_expense_per_transaction if avg_expense_per_transaction > 0 else 0
+        
+        output.append(['Revenue per Transaction', utils.format_currency(avg_income_per_transaction)])
+        output.append(['Cost per Transaction', utils.format_currency(avg_expense_per_transaction)])
+        output.append(['Transaction Efficiency Ratio', f"{transaction_efficiency:.2f}x"])
+        output.append(['Break-even Revenue Needed', utils.format_currency(total_expenses)])
+    output.append([])
+    
+    # Detailed transaction data
+    output.append(['DETAILED TRANSACTION DATA'])
+    output.append([])
+    output.append(['All Transactions'])
+    output.append(['Date', 'Party Name', 'Type', 'Amount', 'Method'])
+    
+    for cf in sorted(cashflows, key=lambda x: x['created_at'], reverse=True):
+        output.append([
+            utils.format_date(cf['created_at']),
+            cf['party_name'],
+            cf['type'],
+            utils.format_currency(cf['amount']),
+            cf['method']
+        ])
+    
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerows(output)
+    
+    logger.info(
+        f"Generated comprehensive P&L CSV for user {current_user.id}",
+        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id}
+    )
+    return Response(buffer.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment;filename=comprehensive_pl_statement.csv'})
 
 def generate_customer_report_csv(report_data):
     output = []
