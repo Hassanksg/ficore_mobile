@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> {{ t('settings_preferences_title', default='User Preferences') }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Language Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-translate"></i> {{ t('settings_language_title', default='Language Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="languageSelect" class="form-label">{{ t('settings_language_label', default='Preferred Language') }}</label>
+                                    <select class="form-select" id="languageSelect" data-setting="languageSelect">
+                                        <option value="en" {% if user_settings.language == 'en' %}selected{% endif %}>
+                                            {{ t('settings_language_english', default='English') }}
+                                        </option>
+                                        <option value="ha" {% if user_settings.language == 'ha' %}selected{% endif %}>
+                                            {{ t('settings_language_hausa', default='Hausa') }}
+                                        </option>
+                                    </select>
+                                    <div class="form-text">{{ t('settings_language_help', default='Choose your preferred language for the interface') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Theme Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-palette"></i> {{ t('settings_theme_title', default='Theme Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="themeToggle" data-setting="themeToggle" 
+                                           {% if user_settings.theme == 'dark' %}checked{% endif %}>
+                                    <label class="form-check-label" for="themeToggle">
+                                        {{ t('settings_dark_mode', default='Dark Mode') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_dark_mode_help', default='Enable dark theme for better viewing in low light') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-layout-sidebar"></i> {{ t('settings_layout_title', default='Layout Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="layoutSelect" class="form-label">{{ t('settings_layout_label', default='Layout Style') }}</label>
+                                    <select class="form-select" id="layoutSelect" data-setting="layoutSelect">
+                                        <option value="default" {% if user_settings.layout == 'default' %}selected{% endif %}>
+                                            {{ t('settings_layout_default', default='Default') }}
+                                        </option>
+                                        <option value="compact" {% if user_settings.layout == 'compact' %}selected{% endif %}>
+                                            {{ t('settings_layout_compact', default='Compact') }}
+                                        </option>
+                                        <option value="wide" {% if user_settings.layout == 'wide' %}selected{% endif %}>
+                                            {{ t('settings_layout_wide', default='Wide') }}
+                                        </option>
+                                    </select>
+                                    <div class="form-text">{{ t('settings_layout_help', default='Choose your preferred layout style') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-display"></i> {{ t('settings_display_title', default='Display Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="showKoboToggle" data-setting="showKoboToggle" 
+                                           {% if user_settings.show_kobo %}checked{% endif %}>
+                                    <label class="form-check-label" for="showKoboToggle">
+                                        {{ t('settings_show_kobo', default='Show Kobo in Currency') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_show_kobo_help', default='Display currency amounts with kobo (cents)') }}</div>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="incognitoModeToggle" data-setting="incognitoModeToggle" 
+                                           {% if user_settings.incognito_mode %}checked{% endif %}>
+                                    <label class="form-check-label" for="incognitoModeToggle">
+                                        {{ t('settings_incognito_mode', default='Incognito Mode') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_incognito_mode_help', default='Hide sensitive information in screenshots') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-volume-up"></i> {{ t('settings_audio_title', default='Audio Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="appSoundsToggle" data-setting="appSoundsToggle" 
+                                           {% if user_settings.app_sounds %}checked{% endif %}>
+                                    <label class="form-check-label" for="appSoundsToggle">
+                                        {{ t('settings_app_sounds', default='App Sounds') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_app_sounds_help', default='Enable notification and interaction sounds') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <div class="settings-section mb-4">
+                        <h5 class="settings-section-title">
+                            <i class="bi bi-shield-lock"></i> {{ t('settings_security_title', default='Security Settings') }}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="fingerprintPasswordToggle" data-setting="fingerprintPasswordToggle" 
+                                           {% if user_settings.fingerprint_password %}checked{% endif %}>
+                                    <label class="form-check-label" for="fingerprintPasswordToggle">
+                                        {{ t('settings_fingerprint_password', default='Fingerprint for Password') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_fingerprint_password_help', default='Use fingerprint instead of password') }}</div>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="fingerprintPinToggle" data-setting="fingerprintPinToggle" 
+                                           {% if user_settings.fingerprint_pin %}checked{% endif %}>
+                                    <label class="form-check-label" for="fingerprintPinToggle">
+                                        {{ t('settings_fingerprint_pin', default='Fingerprint for PIN') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_fingerprint_pin_help', default='Use fingerprint instead of PIN') }}</div>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="hideSensitiveDataToggle" data-setting="hideSensitiveDataToggle" 
+                                           {% if user_settings.hide_sensitive_data %}checked{% endif %}>
+                                    <label class="form-check-label" for="hideSensitiveDataToggle">
+                                        {{ t('settings_hide_sensitive_data', default='Hide Sensitive Data') }}
+                                    </label>
+                                    <div class="form-text">{{ t('settings_hide_sensitive_data_help', default='Hide sensitive information by default') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="settings-actions mt-4">
+                        <button type="button" class="btn btn-primary" id="saveAllSettings">
+                            <i class="bi bi-check-circle"></i> {{ t('settings_save_all', default='Save All Settings') }}
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="resetToDefaults">
+                            <i class="bi bi-arrow-clockwise"></i> {{ t('settings_reset_defaults', default='Reset to Defaults') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Language Toggle Component -->
+<div class="language-toggle-container">
+    <div class="language-toggle">
+        <button class="language-btn {% if session.lang == 'en' %}active{% endif %}" data-lang="en">EN</button>
+        <button class="language-btn {% if session.lang == 'ha' %}active{% endif %}" data-lang="ha">HA</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle individual setting changes
+    const settingInputs = document.querySelectorAll('[data-setting]');
+    settingInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const setting = this.dataset.setting;
+            let value;
+            
+            if (this.type === 'checkbox') {
+                value = this.checked;
+            } else {
+                value = this.value;
+            }
+            
+            updateSetting(setting, value);
+        });
+    });
+    
+    // Handle language toggle buttons
+    const languageButtons = document.querySelectorAll('.language-btn');
+    languageButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const lang = this.dataset.lang;
+            setLanguage(lang);
+        });
+    });
+    
+    // Save all settings button
+    document.getElementById('saveAllSettings').addEventListener('click', function() {
+        // This is handled automatically by individual change events
+        showNotification('{{ t("settings_all_saved", default="All settings saved successfully") }}', 'success');
+    });
+    
+    // Reset to defaults button
+    document.getElementById('resetToDefaults').addEventListener('click', function() {
+        if (confirm('{{ t("settings_reset_confirm", default="Are you sure you want to reset all settings to defaults?") }}')) {
+            resetToDefaults();
+        }
+    });
+});
+
+function updateSetting(setting, value) {
+    fetch('{{ url_for("settings.update_user_setting") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            setting: setting,
+            value: value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            
+            // Apply immediate changes for certain settings
+            if (setting === 'themeToggle') {
+                document.body.classList.toggle('dark-mode', value);
+            }
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating setting:', error);
+        showNotification('{{ t("settings_update_error", default="Error updating setting") }}', 'error');
+    });
+}
+
+function setLanguage(lang) {
+    fetch('{{ url_for("language_bp.api_set_language") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            lang: lang
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update language toggle buttons
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            
+            // Update language select
+            document.getElementById('languageSelect').value = lang;
+            
+            showNotification('{{ t("settings_language_updated", default="Language updated successfully") }}', 'success');
+            
+            // Reload page to apply language changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error setting language:', error);
+        showNotification('{{ t("settings_language_error", default="Error updating language") }}', 'error');
+    });
+}
+
+function resetToDefaults() {
+    // Reset all form inputs to default values
+    document.getElementById('languageSelect').value = 'en';
+    document.getElementById('themeToggle').checked = false;
+    document.getElementById('layoutSelect').value = 'default';
+    document.getElementById('showKoboToggle').checked = true;
+    document.getElementById('incognitoModeToggle').checked = false;
+    document.getElementById('appSoundsToggle').checked = true;
+    document.getElementById('fingerprintPasswordToggle').checked = false;
+    document.getElementById('fingerprintPinToggle').checked = false;
+    document.getElementById('hideSensitiveDataToggle').checked = false;
+    
+    // Trigger change events to save the defaults
+    document.querySelectorAll('[data-setting]').forEach(input => {
+        input.dispatchEvent(new Event('change'));
+    });
+    
+    showNotification('{{ t("settings_reset_success", default="Settings reset to defaults") }}', 'success');
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+</script>
+
+<style>
+.settings-section {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1.5rem;
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+}
+
+.settings-section-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.language-toggle-container {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.language-toggle {
+    display: flex;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.language-btn {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.language-btn:hover {
+    background: #f8f9fa;
+}
+
+.language-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+.dark-mode .language-toggle {
+    background: #343a40;
+    border-color: #495057;
+}
+
+.dark-mode .language-btn {
+    color: #adb5bd;
+}
+
+.dark-mode .language-btn:hover {
+    background: #495057;
+}
+
+.settings-actions {
+    border-top: 1px solid #e9ecef;
+    padding-top: 1.5rem;
+}
+</style>
+{% endblock %}
