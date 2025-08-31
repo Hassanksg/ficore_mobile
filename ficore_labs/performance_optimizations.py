@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, make_response, current_app, g
 from werkzeug.http import http_date
+from werkzeug.wrappers import Response
 import mimetypes
 
 class PerformanceOptimizer:
@@ -42,6 +43,10 @@ class PerformanceOptimizer:
 
     def add_cache_headers(self, response):
         """Add appropriate cache headers to responses."""
+        # Skip processing if response is in direct passthrough mode
+        if isinstance(response, Response) and response.direct_passthrough:
+            return response
+
         if not current_app.config.get('PERFORMANCE_ENABLE_ETAG', True):
             return response
             
@@ -55,8 +60,15 @@ class PerformanceOptimizer:
             cache_timeout = current_app.config.get('PERFORMANCE_STATIC_CACHE_TIMEOUT', 86400 * 30)
             response.headers['Cache-Control'] = f'public, max-age={cache_timeout}'
             response.headers['Expires'] = http_date(datetime.utcnow() + timedelta(seconds=cache_timeout))
+            # Skip ETag generation for static files to avoid passthrough issues
+            return response
+        
+        # Add cache headers for dynamic content
+        elif request.method == 'GET' and response.status_code == 200:
+            cache_timeout = current_app.config.get('PERFORMANCE_CACHE_TIMEOUT', 3600)
+            response.headers['Cache-Control'] = f'private, max-age={cache_timeout}'
             
-            # Add ETag for static files
+            # Add ETag for dynamic content
             if response.data and current_app.config.get('PERFORMANCE_ENABLE_ETAG', True):
                 etag = self.generate_etag(response.data)
                 response.headers['ETag'] = f'"{etag}"'
@@ -66,11 +78,6 @@ class PerformanceOptimizer:
                     response.status_code = 304
                     response.data = b''
         
-        # Add cache headers for dynamic content
-        elif request.method == 'GET' and response.status_code == 200:
-            cache_timeout = current_app.config.get('PERFORMANCE_CACHE_TIMEOUT', 3600)
-            response.headers['Cache-Control'] = f'private, max-age={cache_timeout}'
-            
         return response
 
     def add_security_headers(self, response):
