@@ -199,6 +199,30 @@ class User(UserMixin):
             return default
 
     @property
+    def settings(self):
+        """Get user settings with defaults"""
+        try:
+            with current_app.app_context():
+                user = current_app.extensions['mongo']['bizdb'].users.find_one({'_id': self.id})
+                if user and 'settings' in user:
+                    return user['settings']
+                # Return default settings if none exist
+                return {
+                    'show_kobo': True,
+                    'incognito_mode': False,
+                    'app_sounds': True,
+                    'activity_sidebar_enabled': True
+                }
+        except Exception as e:
+            logger.error(f'Error fetching user settings for {self.id}: {str(e)}', extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+            return {
+                'show_kobo': True,
+                'incognito_mode': False,
+                'app_sounds': True,
+                'activity_sidebar_enabled': True
+            }
+
+    @property
     def is_active(self):
         try:
             with current_app.app_context():

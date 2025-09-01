@@ -279,7 +279,7 @@ def initialize_app_data(app):
                                 'subscription_plan': {'bsonType': ['string', 'null'], 'enum': [None, 'monthly', 'yearly', 'admin']},
                                 'subscription_start': {'bsonType': ['date', 'null']},
                                 'subscription_end': {'bsonType': ['date', 'null']},
-                                'language': {'bsonType': ['string', 'null'], 'enum': [None, 'en', 'ha']},
+                                'language': {'enum': ['en', 'ha']},
                                 'created_at': {'bsonType': 'date'},
                                 'display_name': {'bsonType': ['string', 'null']},
                                 'is_admin': {'bsonType': 'bool'},
@@ -692,7 +692,7 @@ def initialize_app_data(app):
                                 exc_info=True, extra={'session_id': 'no-session-id'})
                     raise
             
-            # Run’s datetime migration
+            # Run datetime migration
             try:
                 migrate_naive_datetimes()
             except Exception as e:
@@ -1153,7 +1153,7 @@ def create_audit_log(db, audit_data):
         str: ID of the created audit log
     """
     try:
-        required_fields = ['action', 'timestamp']
+        required_fields = ['admin_id', 'action', 'timestamp']
         if not all(field in audit_data for field in required_fields):
             raise ValueError(trans('general_missing_audit_fields', default='Missing required audit log fields'))
         result = db.audit_logs.insert_one(audit_data)
@@ -1250,7 +1250,7 @@ def to_dict_user(user):
         'is_admin': user.is_admin,
         'setup_complete': user.setup_complete,
         'language': user.language,
-        'is_trial': user.trial,
+        'is_trial': user.is_trial,
         'trial_start': user.trial_start,
         'trial_end': user.trial_end,
         'is_subscribed': user.is_subscribed,
@@ -1354,7 +1354,7 @@ def to_dict_audit_log(record):
         return {'action': None, 'timestamp': None}
     return {
         'id': str(record.get('_id', '')),
-        'admin_id': record.get('admin_id', None),
+        'admin_id': record.get('admin_id', ''),
         'action': record.get('action', ''),
         'details': record.get('details', {}),
         'timestamp': record.get('timestamp')

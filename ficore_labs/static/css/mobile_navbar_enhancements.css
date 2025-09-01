@@ -1,0 +1,336 @@
+/* Mobile Navbar Enhancements */
+
+/* Base mobile responsive styles */
+@media (max-width: 768px) {
+    /* 1. Logo Size & Position Fixes */
+    .fintech-top-header .app-logo {
+        max-width: 120px; /* Reduced from default */
+        height: auto;
+        max-height: 28px;
+    }
+    
+    .navbar-brand .app-logo {
+        max-width: 100px;
+        height: auto;
+        max-height: 24px;
+    }
+    
+    /* Ensure logo doesn't compete with nav elements */
+    .fintech-top-header .header-left {
+        flex: 0 0 auto;
+        max-width: 140px;
+    }
+    
+    .fintech-top-header .header-right {
+        flex: 1;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    
+    /* 2. Hamburger Menu Improvements */
+    .navbar-toggler {
+        border: none;
+        padding: 0.5rem;
+        background: transparent;
+        /* Ensure minimum touch target size */
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: background-color 0.2s ease;
+    }
+    
+    .navbar-toggler:hover,
+    .navbar-toggler:focus {
+        background-color: rgba(0, 0, 0, 0.1);
+        box-shadow: none;
+        outline: 2px solid #007bff;
+        outline-offset: 2px;
+    }
+    
+    .dark-mode .navbar-toggler:hover,
+    .dark-mode .navbar-toggler:focus {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Ensure hamburger icon is properly sized */
+    .navbar-toggler-icon {
+        width: 24px;
+        height: 24px;
+        background-size: 100%;
+    }
+    
+    /* 3. Collapse Help, Language, Theme into "More" menu for unauthenticated users */
+    .navbar-collapse .navbar-nav {
+        padding-top: 1rem;
+    }
+    
+    /* Enhanced dropdown for mobile "More" menu */
+    .mobile-more-menu {
+        position: relative;
+    }
+    
+    .mobile-more-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: var(--navbar-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        box-shadow: var(--dropdown-shadow);
+        min-width: 200px;
+        z-index: 1050;
+        display: none;
+        padding: 0.5rem 0;
+    }
+    
+    .mobile-more-dropdown.show {
+        display: block;
+    }
+    
+    .mobile-more-dropdown .dropdown-item {
+        padding: 0.75rem 1rem;
+        color: var(--navbar-text-color);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background-color 0.2s ease;
+    }
+    
+    .mobile-more-dropdown .dropdown-item:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .dark-mode .mobile-more-dropdown .dropdown-item:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    /* 4. Sticky navbar behavior improvements */
+    .navbar {
+        transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+    
+    /* Minimal sticky navbar when scrolling */
+    .navbar.scrolled {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark-mode .navbar.scrolled {
+        background: rgba(31, 31, 31, 0.98);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Hide non-essential items when scrolling for unauthenticated users */
+    .navbar.scrolled.unauthenticated .navbar-nav .nav-item:not(.essential) {
+        display: none;
+    }
+    
+    /* Keep essential items visible for authenticated users */
+    .navbar.scrolled.authenticated .navbar-nav .nav-item.essential {
+        display: block;
+    }
+    
+    /* 5. Header right items optimization */
+    .fintech-top-header .header-right .icon-btn {
+        min-width: 36px;
+        min-height: 36px;
+        padding: 0.25rem;
+        font-size: 1rem;
+    }
+    
+    /* Stack help text below icon on very small screens */
+    .fintech-top-header .help-icon-btn {
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+    
+    .fintech-top-header .help-icon-btn .help-text {
+        font-size: 0.5rem;
+        line-height: 1;
+    }
+    
+    /* Language toggle improvements */
+    .fintech-top-header .language-toggle span {
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+}
+
+/* Extra small screens (phones in portrait) */
+@media (max-width: 576px) {
+    /* Further reduce logo size */
+    .fintech-top-header .app-logo {
+        max-width: 100px;
+        max-height: 24px;
+    }
+    
+    .navbar-brand .app-logo {
+        max-width: 85px;
+        max-height: 20px;
+    }
+    
+    /* Tighter spacing */
+    .fintech-top-header {
+        padding: 0.4rem 0.5rem;
+    }
+    
+    .fintech-top-header .header-right {
+        gap: 0.3rem;
+    }
+    
+    /* Smaller touch targets but still accessible */
+    .fintech-top-header .header-right .icon-btn {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0.2rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Hide help text on very small screens */
+    .fintech-top-header .help-icon-btn .help-text {
+        display: none;
+    }
+    
+    /* Compact language toggle */
+    .fintech-top-header .language-toggle span {
+        font-size: 0.6rem;
+    }
+    
+    /* Ensure hamburger menu is easily tappable */
+    .navbar-toggler {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0.4rem;
+    }
+}
+
+/* Hamburger menu dropdown enhancements */
+.navbar-collapse {
+    background: var(--navbar-bg);
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-top: 0.5rem;
+    padding: 1rem;
+}
+
+.dark-mode .navbar-collapse {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Enhanced nav links in mobile */
+.navbar-collapse .nav-link {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.25rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.navbar-collapse .nav-link:hover {
+    background: rgba(0, 123, 255, 0.1);
+    transform: translateX(4px);
+}
+
+.navbar-collapse .nav-link.active {
+    background: rgba(0, 123, 255, 0.15);
+    color: #007bff;
+    font-weight: 600;
+}
+
+/* Mobile dropdown items styling */
+.navbar-collapse .dropdown-menu {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.navbar-collapse .dropdown-item {
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+    color: var(--navbar-text-color);
+}
+
+.navbar-collapse .dropdown-item:hover {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+/* Scroll behavior JavaScript classes */
+.navbar-hidden {
+    transform: translateY(-100%);
+}
+
+.navbar-visible {
+    transform: translateY(0);
+}
+
+/* Animation for smooth transitions */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-more-dropdown.show {
+    animation: slideDown 0.2s ease-out;
+}
+
+/* Accessibility improvements */
+@media (max-width: 768px) {
+    /* Focus indicators */
+    .navbar-toggler:focus,
+    .nav-link:focus,
+    .dropdown-item:focus {
+        outline: 2px solid #007bff;
+        outline-offset: 2px;
+    }
+    
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+        .navbar-collapse {
+            border: 2px solid;
+        }
+        
+        .nav-link {
+            border: 1px solid;
+        }
+    }
+    
+    /* Reduced motion support */
+    @media (prefers-reduced-motion: reduce) {
+        .navbar,
+        .nav-link,
+        .dropdown-item,
+        .mobile-more-dropdown {
+            transition: none;
+        }
+        
+        .mobile-more-dropdown.show {
+            animation: none;
+        }
+    }
+}
+
+/* Print styles - hide navigation on print */
+@media print {
+    .fintech-top-header,
+    .navbar,
+    .bottom-nav {
+        display: none !important;
+    }
+}

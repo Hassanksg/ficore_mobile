@@ -1,7 +1,7 @@
 import os
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, session, make_response
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, TextAreaField, SelectField, SubmitField, BooleanField, validators
@@ -146,12 +146,19 @@ class BusinessSetupForm(FlaskForm):
 def log_audit_action(action, details=None):
     try:
         db = utils.get_mongo_db()
-        db.audit_logs.insert_one({
-            'admin_id': str(current_user.id) if current_user.is_authenticated else 'system',
+        log_entry = {
             'action': action,
             'details': details or {},
-            'timestamp': datetime.utcnow(),
-        })
+            'timestamp': datetime.now(timezone.utc),
+        }
+        
+        # Only add admin_id if user is authenticated, otherwise leave it as None for system actions
+        if current_user.is_authenticated:
+            log_entry['admin_id'] = str(current_user.id)
+        else:
+            log_entry['admin_id'] = None
+            
+        db.audit_logs.insert_one(log_entry)
     except pymongo.errors.PyMongoError as e:
         logger.error(f"Error logging audit action '{action}': {str(e)}")
     except Exception as e:
@@ -482,10 +489,10 @@ def signup():
                 return render_template('users/signup.html', form=form, title=trans('general_signup', lang=session.get('lang', 'en'))), 500
 
             db.audit_logs.insert_one({
-                'admin_id': 'system',
+                'admin_id': None,  # System action, no admin involved
                 'action': 'signup',
                 'details': {'user_id': username, 'role': role},
-                'timestamp': datetime.utcnow()
+                'timestamp': datetime.now(timezone.utc)
             })
 
             user_obj = User(
