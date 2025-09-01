@@ -296,3 +296,61 @@
     }
 
 }
+
+:root {
+  --ficore-header-height: 80px;
+}
+
+.fintech-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--ficore-header-height);
+  width: 100%;
+  padding: 0 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+}
+
+.navbar.navbar-expand-lg {
+  height: var(--ficore-header-height);
+  width: 100%;
+  padding: 0 1.5rem;
+  background-color: #f8f9fa;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.app-logo, .profile-avatar {
+  height: calc(var(--ficore-header-height) - 24px);
+  object-fit: contain;
+}
+
+.profile-link-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .fintech-top-header, .navbar.navbar-expand-lg {
+    padding: 0 0.75rem;
+  }
+  .header-right {
+    gap: 1rem;
+  }
+  .app-logo, .profile-avatar {
+    height: calc(var(--ficore-header-height) - 32px);
+  }
+}
