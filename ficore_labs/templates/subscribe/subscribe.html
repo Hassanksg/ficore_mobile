@@ -79,7 +79,7 @@
             <div class="col-md-4">
                 <div class="pricing-card">
                     <h3>{{ plan.name | e }}</h3>
-                    <div class="price">{{ plan.price | format_currency }}</div>
+                    <div class="price">{{ plan.price | format_currency | e }}</div>
                     <p>{{ plan.description | e }}</p>
                     <a class="btn-subscribe" href="{{ url_for('subscribe_bp.manage_subscription', plan_code=plan.plan_code) }}">{{ t('subscribe_button', default='Subscribe Now') | e }}</a>
                 </div>
