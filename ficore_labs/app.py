@@ -122,7 +122,7 @@ def ensure_session_id(f):
 
 def setup_logging(app):
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)  # Changed to DEBUG for more detailed logging
     handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s [session: %(session_id)s, role: %(user_role)s, ip: %(ip_address)s]'))
     root_logger = logging.getLogger('bizcore_app')
     root_logger.handlers = []
@@ -136,16 +136,16 @@ def setup_logging(app):
     flask_logger.addHandler(handler)
     werkzeug_logger.addHandler(handler)
     pymongo_logger.addHandler(handler)
-    flask_logger.setLevel(logging.INFO)
-    werkzeug_logger.setLevel(logging.INFO)
-    pymongo_logger.setLevel(logging.INFO)
+    flask_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
+    werkzeug_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
+    pymongo_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
     logger.info('Logging setup complete', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
 
 def check_mongodb_connection(app):
     try:
         client = app.extensions['mongo']
         client.admin.command('ping')
-        logger.info('MongoDB connection verified', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
+        logger.info('HTCDB connection verified', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
         return True
     except Exception as e:
         logger.error(f'MongoDB connection failed: {str(e)}', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
@@ -435,7 +435,7 @@ def create_app():
     app.register_blueprint(receipts_bp, url_prefix='/receipts')
     app.register_blueprint(reports_bp, url_prefix='/reports')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(admin_receipt_bp)  # Additional admin receipt routes
+    app.register_blueprint(admin_receipt_bp)
     app.register_blueprint(funds_bp, url_prefix='/funds')
     app.register_blueprint(forecasts_bp, url_prefix='/forecasts')
     app.register_blueprint(investor_reports_bp, url_prefix='/investor-reports')
@@ -562,7 +562,7 @@ def create_app():
                 """
         except Exception as e:
             logger.warning(f"Failed to load critical CSS: {e}")
-        return ""
+            return ""
     
     def get_critical_js():
         """Get critical JavaScript content for inlining."""
@@ -588,7 +588,7 @@ def create_app():
                 """
         except Exception as e:
             logger.warning(f"Failed to load critical JS: {e}")
-        return ""
+            return ""
     
     def get_asset_url(filename):
         """Get asset URL with versioning support."""
@@ -657,7 +657,7 @@ def create_app():
             if role == 'admin':
                 nav = build_nav(_ADMIN_NAV)
                 tools = build_nav(_ADMIN_TOOLS)
-            elif role == 'startup':
+            elif role == 's':
                 nav = build_nav(_STARTUP_NAV)
                 tools = build_nav(_STARTUP_TOOLS)
             elif role == 'trader':
@@ -816,8 +816,16 @@ def create_app():
             # Skip for certain routes
             skip_routes = ['/api/notifications', '/users/login', '/users/logout']
             if any(request.path.startswith(route) for route in skip_routes):
+                logger.debug(f"Skipping header modification for route: {request.path}", 
+                            extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
                 return response
                 
+            # Check if response is in direct passthrough mode or streaming
+            if getattr(response, '_is_streamed', False) or (isinstance(response, Response) and response.direct_passthrough):
+                logger.debug(f"Skipping header modification for passthrough/streaming response: {request.path}, response type: {type(response)}", 
+                            extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+                return response
+
             # Add cache headers for static files
             if request.path.startswith('/static/'):
                 cache_timeout = app.config.get('PERFORMANCE_STATIC_CACHE_TIMEOUT', 2592000)
@@ -861,8 +869,12 @@ def create_app():
                 )
                 response.headers['Content-Security-Policy'] = csp
             
+            logger.debug(f"Headers added successfully for route: {request.path}, response type: {type(response)}", 
+                        extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+            
         except Exception as e:
-            logger.warning(f'Failed to add performance headers: {e}')
+            logger.warning(f'Failed to add performance headers for {request.path}: {str(e)}, response type: {type(response)}', 
+                          extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
         
         return response
 
