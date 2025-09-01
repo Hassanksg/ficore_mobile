@@ -27,6 +27,11 @@ class KYCForm(FlaskForm):
     id_photo = FileField('ID Photo', validators=[DataRequired()])
     submit = SubmitField('Submit')
 
+@kyc_bp.route('/')
+@login_required
+def index():
+    return redirect(url_for('kyc.status'))
+
 @kyc_bp.route('/submit', methods=['GET', 'POST'])
 @login_required
 @utils.limiter.limit('10 per minute')
