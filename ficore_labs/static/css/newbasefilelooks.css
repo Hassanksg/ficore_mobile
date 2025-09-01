@@ -21,7 +21,7 @@
 .navbar.navbar-expand-lg {
   height: var(--ficore-header-height);
   width: 100%;
-  padding: 0 1.5rem;
+  padding: 0 0.75rem;
   background-color: #f8f9fa;
 }
 
@@ -29,6 +29,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 150px;
+  overflow: visible;
 }
 
 .header-right {
@@ -46,7 +48,15 @@
   gap: 0.5rem;
 }
 
-.app-logo, .profile-avatar {
+.app-logo, .ficore-logo {
+  max-width: 100%;
+  height: auto;
+  max-height: calc(var(--ficore-header-height) - 24px);
+  object-fit: contain;
+  margin-right: 0.5rem;
+}
+
+.profile-avatar {
   height: calc(var(--ficore-header-height) - 24px);
   width: 32px;
   border-radius: 50%;
@@ -71,11 +81,6 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: #333;
-}
-
-.ficore-logo {
-  height: 25px;
-  margin-right: 0.5rem;
 }
 
 .brand-text {
@@ -144,25 +149,25 @@
 }
 
 .language-btn.active {
-  background:  #D4AF37  ;
-  border-color:  #D4AF37  ;
+  background: #D4AF37;
+  border-color: #D4AF37;
   color: #000;
 }
 
 .language-btn:hover {
-  background: rgba(255, 215, 0, 0.1);
+  background: rgba(212, 175, 55, 0.1);
   border-color: #1E3A8A;
   color: #1E3A8A;
 }
 
 .main-content {
   transition: margin-right 0.3s ease;
-  padding-top: 60px;
+  padding-top: calc(var(--ficore-header-height) + 10px);
 }
 
 .breadcrumb-nav {
   position: sticky;
-  top: 0;
+  top: var(--ficore-header-height);
   z-index: 1030;
   margin-bottom: 1.5rem;
 }
@@ -395,13 +400,13 @@ df-messenger {
 }
 
 .dark-mode .language-btn.active {
-  background:  #D4AF37  ;
-  border-color:  #D4AF37  ;
+  background: #D4AF37;
+  border-color: #D4AF37;
   color: #000;
 }
 
 .dark-mode .language-btn:hover {
-  background: rgba(255, 215, 0, 0.2);
+  background: rgba(212, 175, 55, 0.2);
   border-color: #1E3A8A;
   color: #f8f9fa;
 }
@@ -455,13 +460,19 @@ df-messenger {
   .fintech-top-header, .navbar.navbar-expand-lg {
     padding: 0.4rem 0.75rem;
   }
+  .header-left {
+    min-width: 120px;
+  }
   .header-right {
     gap: 0.5rem;
   }
   .language-buttons {
     gap: 0.3rem;
   }
-  .app-logo, .profile-avatar {
+  .app-logo, .ficore-logo {
+    max-height: calc(var(--ficore-header-height) - 32px);
+  }
+  .profile-avatar {
     height: calc(var(--ficore-header-height) - 32px);
   }
   .icon-btn {
@@ -496,6 +507,9 @@ df-messenger {
 @media (max-width: 576px) {
   .fintech-top-header {
     padding: 0.3rem 0.5rem;
+  }
+  .header-left {
+    min-width: 100px;
   }
   .header-right {
     gap: 0.3rem;
