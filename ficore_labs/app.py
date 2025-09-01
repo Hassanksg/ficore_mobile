@@ -130,7 +130,7 @@ class SafeFormatter(logging.Formatter):
 
 def setup_logging(app):
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.WARNING)
     handler.setFormatter(SafeFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s [session: %(session_id)s, role: %(user_role)s, ip: %(ip_address)s]'))
     root_logger = logging.getLogger('bizcore_app')
     root_logger.handlers = []
@@ -144,9 +144,9 @@ def setup_logging(app):
     flask_logger.addHandler(handler)
     werkzeug_logger.addHandler(handler)
     pymongo_logger.addHandler(handler)
-    flask_logger.setLevel(logging.DEBUG)
-    werkzeug_logger.setLevel(logging.DEBUG)
-    pymongo_logger.setLevel(logging.DEBUG)
+    flask_logger.setLevel(logging.WARNING)
+    werkzeug_logger.setLevel(logging.WARNING)
+    pymongo_logger.setLevel(logging.WARNING)
     logger.info('Logging setup complete', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
 
 def check_mongodb_connection(app):
