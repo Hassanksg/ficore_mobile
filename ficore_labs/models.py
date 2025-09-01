@@ -388,7 +388,7 @@ def initialize_app_data(app):
                             'bsonType': 'object',
                             'required': ['admin_id', 'action', 'timestamp'],
                             'properties': {
-                                'admin_id': {'bsonType': 'string'},
+                                'admin_id': {'bsonType': ['string', 'null']},
                                 'action': {'bsonType': 'string'},
                                 'details': {'bsonType': ['object', 'null']},
                                 'timestamp': {'bsonType': 'date'}
