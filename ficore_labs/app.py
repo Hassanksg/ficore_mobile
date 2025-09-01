@@ -120,10 +120,18 @@ def ensure_session_id(f):
         return f(*args, **kwargs)
     return decorated_function
 
+class SafeFormatter(logging.Formatter):
+    def format(self, record):
+        # Provide default values for missing fields
+        record.session_id = getattr(record, 'session_id', 'N/A')
+        record.user_role = getattr(record, 'user_role', 'N/A')
+        record.ip_address = getattr(record, 'ip_address', 'N/A')
+        return super().format(record)
+
 def setup_logging(app):
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)  # Changed to DEBUG for more detailed logging
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s [session: %(session_id)s, role: %(user_role)s, ip: %(ip_address)s]'))
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(SafeFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s [session: %(session_id)s, role: %(user_role)s, ip: %(ip_address)s]'))
     root_logger = logging.getLogger('bizcore_app')
     root_logger.handlers = []
     root_logger.addHandler(handler)
@@ -136,9 +144,9 @@ def setup_logging(app):
     flask_logger.addHandler(handler)
     werkzeug_logger.addHandler(handler)
     pymongo_logger.addHandler(handler)
-    flask_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
-    werkzeug_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
-    pymongo_logger.setLevel(logging.DEBUG)  # Changed to DEBUG
+    flask_logger.setLevel(logging.DEBUG)
+    werkzeug_logger.setLevel(logging.DEBUG)
+    pymongo_logger.setLevel(logging.DEBUG)
     logger.info('Logging setup complete', extra={'session_id': 'none', 'user_role': 'none', 'ip_address': 'none'})
 
 def check_mongodb_connection(app):
