@@ -219,7 +219,7 @@
             {% for receipt in receipts %}
             <div class="receipt-item">
                 <div>
-                    <strong>{{ receipt.plan_type|capitalize | e }} Plan</strong> - ₦{{ receipt.amount_paid | format_number | e }}<br>
+                    <strong>{{ receipt.plan_type|capitalize | e }} Plan</strong> - {{ receipt.amount_paid | format_currency | e }}<br>
                     <small>{{ t('subscribe_uploaded', default='Uploaded') | e }}: {{ receipt.uploaded_at | format_date | e }}</small>
                 </div>
                 <span class="receipt-status status-{{ receipt.status | e }}">
@@ -248,3 +248,4 @@
     {% endblock %}
 </body>
 </html>
+
