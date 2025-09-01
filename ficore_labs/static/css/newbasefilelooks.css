@@ -149,8 +149,8 @@
 }
 
 .language-btn.active {
-  background: #D4AF37;
-  border-color: #D4AF37;
+  background: #b88a44;
+  border-color: #b88a44;
   color: #000;
 }
 
@@ -400,8 +400,8 @@ df-messenger {
 }
 
 .dark-mode .language-btn.active {
-  background: #D4AF37;
-  border-color: #D4AF37;
+  background: #b88a44;
+  border-color: #b88a44;
   color: #000;
 }
 
