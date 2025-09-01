@@ -297,31 +297,3 @@
 
 }
 
-:root {
-  --ficore-header-height: 64px;
-}
-
-.fintech-top-header,
-.navbar {
-  min-height: var(--ficore-header-height);
-  height: var(--ficore-header-height);
-  padding-top: 0;
-  padding-bottom: 0;
-  display: flex;
-  align-items: center;
-}
-
-.navbar .navbar-nav > .nav-item > .nav-link,
-.fintech-top-header .header-left,
-.fintech-top-header .header-right {
-  min-height: var(--ficore-header-height);
-  height: var(--ficore-header-height);
-  display: flex;
-  align-items: center;
-}
-
-@media (max-width: 991.98px) {
-  :root {
-    --ficore-header-height: 56px; 
-  }
-}
