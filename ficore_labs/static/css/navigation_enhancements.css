@@ -300,7 +300,7 @@
 
 /* Define root variables */
 :root {
-  --ficore-header-height: 70px; /* Default height if not defined elsewhere */
+  --ficore-header-height: 70px; 
 }
 
 /* Header styling */
@@ -310,15 +310,14 @@
   align-items: center;
   height: var(--ficore-header-height);
   padding: 0 1rem;
-  background-color: #fff; /* Ensure background for visibility */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Left section with logo and profile */
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1rem; /* Space between logo and profile */
+  gap: 1rem; 
 }
 
 /* Right section with navigation items */
@@ -354,3 +353,4 @@
     height: calc(var(--ficore-header-height) - 30px); 
   }
 }
+
