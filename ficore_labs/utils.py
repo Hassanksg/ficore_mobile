@@ -647,7 +647,12 @@ def format_currency(amount, currency='₦', lang=None, include_symbol=True):
         with current_app.app_context():
             if lang is None:
                 lang = session.get('lang', 'en') if has_request_context() else 'en'
-            amount = clean_currency(amount) if isinstance(amount, str) else float(amount) if amount is not None else 0
+            if amount is None or amount == '':
+                amount = 0
+            if isinstance(amount, str):
+                amount = clean_currency(amount)
+            else:
+                amount = float(amount)
             if amount.is_integer():
                 formatted = f"{int(amount):,}"
             else:
