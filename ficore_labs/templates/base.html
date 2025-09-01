@@ -396,7 +396,8 @@
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': getCsrfToken()
-                    }
+                    },
+                    credentials: 'include'
                 });
                 if (!response.ok) throw new Error('Language change failed');
                 const result = await response.json();
