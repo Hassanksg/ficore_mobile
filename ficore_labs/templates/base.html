@@ -828,6 +828,7 @@
                     </div>
                 `;
                 console.error('Failed to load notifications:', error);
+                showToast('{{ t("general_notification_load_error", default="Failed to load notifications") | e }}', 'error');
             }
         }
 
